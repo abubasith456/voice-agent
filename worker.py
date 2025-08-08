@@ -7,7 +7,7 @@ from livekit.agents import JobContext, WorkerOptions, cli, AgentSession, RoomInp
 from livekit.plugins import deepgram, openai, silero
 
 from gocare.state import ConversationContext
-from gocare.agents.greeting_agent import GreetingAgent
+from gocare.agents import MultiAgent
 
 
 load_dotenv()
@@ -19,13 +19,13 @@ async def entrypoint(ctx: JobContext) -> None:
     session = AgentSession[ConversationContext](
         vad=silero.VAD.load(),
         stt=deepgram.STT(model="nova-3", language="en"),
-        llm=openai.LLM(model="gpt-4o-mini"),  # Point OPENAI_BASE_URL to OpenRouter to use OpenRouter
+        llm=openai.LLM(model="gpt-4o-mini"),  # set OPENAI_BASE_URL to point to OpenRouter
         tts=deepgram.TTS(model="aura-asteria-en"),
         userdata=ConversationContext(),
     )
 
     await session.start(
-        agent=GreetingAgent(),
+        agent=MultiAgent(),
         room=ctx.room,
         room_input_options=RoomInputOptions(),
     )
