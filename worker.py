@@ -35,7 +35,9 @@ async def entrypoint(ctx: JobContext) -> None:
     llm = openai.LLM(client=openai_client, model=llm_model)
 
     # Register MCP server(s) so the LLM can choose tools directly
-    mcp_url = os.getenv("MCP_SERVER_URL", "").strip()
+    mcp_base = os.getenv("MCP_SERVER_URL", "").strip().rstrip("/")
+    mcp_prefix = os.getenv("MCP_HTTP_PREFIX", "/mcp").strip()
+    mcp_url = f"{mcp_base}{mcp_prefix}" if mcp_base else ""
 
     session = AgentSession(
         vad=silero.VAD.load(),
@@ -44,7 +46,7 @@ async def entrypoint(ctx: JobContext) -> None:
         tts=deepgram.TTS(model="aura-asteria-en"),
         userdata=ConversationContext(),
         turn_detection=MultilingualModel(),
-        mcp_servers=[mcp.MCPServerHTTP(url="http://127.0.0.1:8000/mcp")],
+        mcp_servers=([mcp.MCPServerHTTP(url=mcp_url)] if mcp_url else []),
     )
 
     await session.start(
