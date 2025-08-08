@@ -1,22 +1,12 @@
 from __future__ import annotations
 
-import re
-from dataclasses import asdict
-from typing import Optional
-
-from livekit.agents import Agent, RunContext, function_tool
+from livekit.agents import Agent
 
 from gocare.state import ConversationContext, SessionState
-from gocare.security import refusal_message, log_sensitive_attempt
-from gocare.agents.user_agent import UserAgent
-from gocare.agents.unauthorized_agent import UnauthorizedAgent
-
-MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
-
 
 BASE_GREETING_INSTRUCTIONS = (
     "You are a post-auth greeting agent. The user has just been verified. "
-    "Offer a friendly, concise welcome, then transition to the query agent."
+    "Offer a friendly, concise welcome and let them know you can help with transactions."
 )
 
 
@@ -28,10 +18,6 @@ class GreetingAgent(Agent):
         self.session.userdata.state = SessionState.MAIN
         await self.session.generate_reply(
             instructions=(
-                "You're all set. I'll connect you to your assistant to help with your transactions."
+                "You're all set. How can I help with your transactions?"
             )
         )
-        # Immediately hand off to UserAgent
-        self.session.update_agent(UserAgent())
-
-    # The mobile collection is now handled by MultiAgent
