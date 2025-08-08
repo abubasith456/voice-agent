@@ -35,9 +35,7 @@ async def entrypoint(ctx: JobContext) -> None:
     llm = openai.LLM(client=openai_client, model=llm_model)
 
     # Register MCP server(s) so the LLM can choose tools directly
-    mcp_base = os.getenv("MCP_SERVER_URL", "").strip().rstrip("/")
-    mcp_prefix = os.getenv("MCP_HTTP_PREFIX", "/mcp").strip()
-    mcp_url = f"{mcp_base}{mcp_prefix}" if mcp_base else ""
+    mcp_url = os.getenv("MCP_SERVER_URL", "").strip()
 
     session = AgentSession(
         vad=silero.VAD.load(),
