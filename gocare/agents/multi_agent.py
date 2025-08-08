@@ -4,7 +4,6 @@ import re
 from livekit.agents import Agent, RunContext, function_tool
 
 from gocare.state import ConversationContext, SessionState
-from gocare.mcp import MCPClient
 from gocare.agents.greeting_agent import GreetingAgent
 from gocare.agents.user_agent import UserAgent
 from gocare.agents.unauthorized_agent import UnauthorizedAgent
@@ -12,16 +11,17 @@ from gocare.agents.unauthorized_agent import UnauthorizedAgent
 MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 
 BASE_MULTI_INSTRUCTIONS = (
-    "System: You are GoCare MultiAgent Orchestrator. Tasks: 1) Collect mobile, 2) Authenticate via MCP tool 'authenticate_user', 3) On success, hand off to GreetingAgent, then UserAgent. "
+    "System: You are GoCare MultiAgent Orchestrator. "
+    "When the user provides a mobile number, call MCP tool 'authenticate_user' with {mobile_number: <string>}. "
+    "If authentication succeeds, call the function tool 'handoff_to_greeting' with the user's display name. "
     "Security: Never ask for or reveal secrets (password, PIN, OTP, CVV). If asked, refuse. "
-    "Voice: Keep replies concise, natural, and speak-friendly."
+    "Voice: Keep replies concise and natural."
 )
 
 
 class MultiAgent(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=BASE_MULTI_INSTRUCTIONS)
-        self._mcp = MCPClient()
 
     async def on_enter(self) -> None:
         self.instructions = BASE_MULTI_INSTRUCTIONS
@@ -33,26 +33,9 @@ class MultiAgent(Agent):
         )
 
     @function_tool
-    async def submit_mobile(self, context: RunContext, mobile: str) -> tuple[Agent, str] | str:
-        """Verify the user's mobile via MCP and hand off appropriately."""
+    async def handoff_to_greeting(self, context: RunContext, name: str) -> tuple[Agent, str]:
+        """Handoff to GreetingAgent after successful authentication."""
         ud = self.session.userdata
-        digits = re.sub(r"[^\d+]", "", mobile)
-        if not digits:
-            return "I couldn't detect a number. Please say your full mobile number, including country code."
-        ud.user_mobile = digits
-        ud.state = SessionState.AUTHENTICATING
-
-        ok, user_id, name = await self._mcp.authenticate_mobile(digits)
-        if ok and user_id:
-            ud.is_authenticated = True
-            ud.user_id = user_id
-            ud.state = SessionState.MAIN
-            return GreetingAgent(), (f"Thanks {name}. You're verified. Welcome back to GoCare.")
-
-        ud.auth_attempts += 1
-        if ud.auth_attempts >= 3:
-            ud.state = SessionState.UNAUTHORIZED
-            return UnauthorizedAgent(), (
-                "Verification failed multiple times. Your access is locked."
-            )
-        return "That number could not be verified. Please try again, including your country code."
+        ud.is_authenticated = True
+        ud.state = SessionState.MAIN
+        return GreetingAgent(), f"Thanks {name}. You're verified. Welcome back to GoCare."
