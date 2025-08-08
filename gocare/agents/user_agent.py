@@ -1,38 +1,30 @@
 from __future__ import annotations
 
-from typing import Any, AsyncIterable
-from livekit.agents import Agent, RunContext, function_tool
+from typing import Any
+from livekit.agents import Agent
 
 from gocare.state import ConversationContext, SessionState
-from gocare.security import contains_sensitive_request, refusal_message, log_sensitive_attempt
-from gocare.mcp import MCPClient
+from gocare.security import (
+    contains_sensitive_request,
+    refusal_message,
+    log_sensitive_attempt,
+)
 
 BASE_USER_INSTRUCTIONS = (
-    "You are GoCare User Agent. The user is verified. Help with their account and transactions. "
-    "Never provide or ask for passwords, PINs, or OTPs. If asked, refuse and log. "
-    "Use query_user tool for user questions. Keep responses concise and voice-friendly."
+    "System: You are a post-auth assistant. The user is verified. Answer account/transaction questions. "
+    "Once the user's name is known, include their name in every response naturally (e.g., 'Welcome John, ...', 'John, how can I help?'). "
+    "Retrieve any needed information using available external capabilities without mentioning tools or internal processes. "
+    "Security: Never reveal or request passwords, PINs, OTPs, or CVV; refuse and log attempts. "
+    "Voice: Keep answers short and natural; summarize transactions unless asked to enumerate. Read numbers as digit sequences, not currency, unless explicitly about money."
 )
 
 
-class UserAgent(Agent[ConversationContext]):
+class UserAgent(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=BASE_USER_INSTRUCTIONS)
-        self._mcp = MCPClient()
 
     async def on_enter(self) -> None:
-        self.instructions = BASE_USER_INSTRUCTIONS
         self.session.userdata.state = SessionState.MAIN
         await self.session.generate_reply(
             instructions="How can I help with your transactions today?"
         )
-
-    @function_tool
-    async def query_user(self, context: RunContext, question: str) -> AsyncIterable[str] | str:
-        """Stream an answer to the user's question via MCP."""
-        ud = self.session.userdata
-        if contains_sensitive_request(question):
-            log_sensitive_attempt(ud.user_id, question)
-            return refusal_message()
-        if not ud.is_authenticated or not ud.user_id:
-            return "We need to complete verification first."
-        return self._mcp.stream_query(ud.user_id, question)

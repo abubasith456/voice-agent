@@ -1,38 +1,28 @@
 from __future__ import annotations
 
-import re
-from dataclasses import asdict
-from typing import Optional
-
-from livekit.agents import Agent, RunContext, function_tool
+from livekit.agents import Agent
 
 from gocare.state import ConversationContext, SessionState
-from gocare.security import refusal_message, log_sensitive_attempt
-from gocare.agents.user_agent import UserAgent
-from gocare.agents.unauthorized_agent import UnauthorizedAgent
-
-MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
-
 
 BASE_GREETING_INSTRUCTIONS = (
-    "You are GoCare Greeting Agent. The user has just been verified. "
-    "Offer a friendly, concise welcome, then transition to the UserAgent."
+    "You are a post-auth assistant. The user has been verified. "
+    "Style: Natural, conversational, and concise. Use contractions. Avoid robotic repetition. "
+    "Name usage: Use the user's name sparingly (roughly every few turns or when emphasis/clarity helps). Do not start every message with their name or with 'Hello'. "
+    "Greetings: Do not re-greet after the initial welcome. "
+    "Follow-ups: Do not append the same generic question (e.g., 'How can I help you today?') to every reply. If you offer a follow-up, make it context-specific and short (max ~5 words), and not every time. "
+    "Content: Answer the user's request directly and succinctly. If they ask for personal info, retrieve it via available tools without exposing tool usage. Do not list options or menus unless explicitly requested. "
+    "Do not mention tools, function calls, schemas, or internal processes."
 )
 
 
-class GreetingAgent(Agent[ConversationContext]):
-    def __init__(self) -> None:
-        super().__init__(instructions=BASE_GREETING_INSTRUCTIONS)
+class GreetingAgent(Agent):
+    def __init__(self, extra_instructions: str | None = None) -> None:
+        instructions_text = BASE_GREETING_INSTRUCTIONS
+        if extra_instructions:
+            instructions_text = instructions_text + " " + extra_instructions
+        super().__init__(instructions=instructions_text)
 
     async def on_enter(self) -> None:
-        self.instructions = BASE_GREETING_INSTRUCTIONS
+        # Stay in MAIN and let the handoff message from switch_to_greeting be the only output
         self.session.userdata.state = SessionState.MAIN
-        await self.session.generate_reply(
-            instructions=(
-                "Welcome to GoCare. You're all set. I'll connect you to your assistant to help with your transactions."
-            )
-        )
-        # Immediately hand off to UserAgent
-        await self.session.handoff(UserAgent(), "How can I help with your transactions today?")
-
-    # The mobile collection is now handled by MultiAgent
+        return

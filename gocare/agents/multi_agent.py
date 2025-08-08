@@ -4,57 +4,69 @@ import re
 from livekit.agents import Agent, RunContext, function_tool
 
 from gocare.state import ConversationContext, SessionState
-from gocare.mcp import MCPClient
 from gocare.agents.greeting_agent import GreetingAgent
-from gocare.agents.user_agent import UserAgent
-from gocare.agents.unauthorized_agent import UnauthorizedAgent
+from gocare.agents.main_agent import MainAgent
 
 MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 
 BASE_MULTI_INSTRUCTIONS = (
-    "You are GoCare MultiAgent controller. Collect the user's registered mobile, verify via MCP, then hand off to GreetingAgent after success, which immediately transitions to UserAgent. "
-    "Never ask for or reveal secrets. Use submit_mobile() when number is provided."
+    "System: You are the session orchestrator. "
+    "Flow: (1) Greet and request the registered mobile number (no need to mention country code). (2) When a valid mobile number appears at ANY time in the conversation, immediately call the external tool 'authenticate_user' with {mobile_number: <string>} or else confirm the user is authentication mobile number or not. "
+    "Immediately after a successful authentication result, call the function tool 'switch_to_greeting' in the same turn (do not wait for the user). Do not narrate that you are switching. "
+    "Only when the user explicitly asks for personal information about the user, switch to the MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using the external tool 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. Never ask the user for their user ID. "
+    "Names: Do not use or guess a user name until it is returned by authentication. If no name is known yet, avoid addressing the user by name. Never invent names. "
+    "Privacy: Do not state mapping like 'The user with number X is Y'. Just continue naturally using the name after authentication. "
+    "Authentication state: After greeting handoff, the user is authenticated for the session. If asked, reply briefly ('You're verified.') without extra details. Never say 'not authenticated', 'logged in as', or 'a different user'. On tool error, ask for the mobile again without those phrases. "
+    "Domain scope: You ONLY help with banking/account tasks: authentication, profile info, balances, statements, transactions, and account updates. If off-topic, politely refuse and offer a relevant next step. "
+    "Style: Natural, conversational, and concise. Use contractions. Output exactly one sentence per turn unless listing short factual items; do not repeat greetings. "
+    "Tooling Disclosure: Do not mention tool names, function calls, schemas, or internal processes to the user. Do not output code/markers. "
+    "Forbidden characters/markers: never output [, ], <, >, {, }, backticks, or text that looks like a function call (e.g., name(args)). If your draft contains any of these, rewrite it as plain natural language. "
+    "Voice: Read phone numbers as digit sequences, not currency; avoid protocol artifacts like |end|."
 )
 
 
-class MultiAgent(Agent[ConversationContext]):
+class MultiAgent(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=BASE_MULTI_INSTRUCTIONS)
-        self._mcp = MCPClient()
 
     async def on_enter(self) -> None:
-        self.instructions = BASE_MULTI_INSTRUCTIONS
         self.session.userdata.state = SessionState.GREETING
         await self.session.generate_reply(
             instructions=(
-                "Welcome to GoCare. Please say your registered mobile number, including country code."
+                "Your next message must be exactly: 'Welcome. Please say your registered mobile number.' Do not add or prepend any other words."
             )
         )
 
     @function_tool
-    async def submit_mobile(self, context: RunContext, mobile: str) -> tuple[Agent[ConversationContext], str] | str:
-        """Verify the user's mobile via MCP and hand off appropriately."""
+    async def switch_to_greeting(
+        self, context: RunContext, user_id: str, name: str
+    ) -> tuple[Agent, str]:
+        """Switch to GreetingAgent after successful authentication."""
         ud = self.session.userdata
-        digits = re.sub(r"[^\d+]", "", mobile)
-        if not digits:
-            return "I couldn't detect a number. Please say your full mobile number, including country code."
-        ud.user_mobile = digits
-        ud.state = SessionState.AUTHENTICATING
+        # Guard against unintended re-greeting when already authenticated
+        if ud.is_authenticated and ud.user_id:
+            return self, ""
+        ud.user_id = user_id
+        ud.user_name = (name or "").strip()
+        ud.is_authenticated = True
+        ud.state = SessionState.MAIN
+        extra = (
+            f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
+            "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step."
+        )
+        single_line = (
+            f"Hello {ud.user_name}, how can I assist you today?"
+            if ud.user_name
+            else "Hello, how can I assist you today?"
+        )
+        return GreetingAgent(extra_instructions=extra), single_line
 
-        ok, user_id = await self._mcp.authenticate_mobile(digits)
-        if ok and user_id:
-            ud.is_authenticated = True
-            ud.user_id = user_id
-            ud.state = SessionState.MAIN
-            # greet after auth then proceed to user agent
-            return GreetingAgent(), (
-                "Thanks. You're verified. Welcome back to GoCare."
-            )
-
-        ud.auth_attempts += 1
-        if ud.auth_attempts >= 3:
-            ud.state = SessionState.UNAUTHORIZED
-            return UnauthorizedAgent(), (
-                "Verification failed multiple times. Your access is locked."
-            )
-        return "That number could not be verified. Please try again, including your country code."
+    @function_tool
+    async def switch_to_main(self, context: RunContext) -> tuple[Agent, str]:
+        """Switch to MainAgent for personal info queries using stored context (no arguments)."""
+        ud = self.session.userdata
+        extra = (
+            f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
+            "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step."
+        )
+        return MainAgent(extra_instructions=extra), ""
