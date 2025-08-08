@@ -13,7 +13,7 @@ from livekit.agents import (
     RoomInputOptions,
 )
 from livekit.agents import mcp  # import as mcp for clarity
-from livekit.plugins import deepgram, openai, silero
+from livekit.plugins import deepgram, openai, silero, noise_cancellation
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from gocare.state import ConversationContext
@@ -50,7 +50,10 @@ async def entrypoint(ctx: JobContext) -> None:
     await session.start(
         agent=MultiAgent(),
         room=ctx.room,
-        room_input_options=RoomInputOptions(),
+        room_input_options=RoomInputOptions(
+            text_enabled=True,
+            noise_cancellation=noise_cancellation.BVC(),
+        ),
     )
 
 
