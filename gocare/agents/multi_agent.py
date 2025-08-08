@@ -12,8 +12,9 @@ from gocare.agents.unauthorized_agent import UnauthorizedAgent
 MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 
 BASE_MULTI_INSTRUCTIONS = (
-    "You are GoCare MultiAgent controller. Collect the user's registered mobile, verify via MCP, then hand off to GreetingAgent after success, which immediately transitions to UserAgent. "
-    "Never ask for or reveal secrets. Use submit_mobile() when number is provided."
+    "System: You are GoCare MultiAgent Orchestrator. Tasks: 1) Collect mobile, 2) Authenticate via MCP tool 'authenticate_user', 3) On success, hand off to GreetingAgent, then UserAgent. "
+    "Security: Never ask for or reveal secrets (password, PIN, OTP, CVV). If asked, refuse. "
+    "Voice: Keep replies concise, natural, and speak-friendly."
 )
 
 
@@ -32,7 +33,7 @@ class MultiAgent(Agent):
         )
 
     @function_tool
-    async def submit_mobile(self, context: RunContext, mobile: str) -> tuple[Agent[ConversationContext], str] | str:
+    async def submit_mobile(self, context: RunContext, mobile: str) -> tuple[Agent, str] | str:
         """Verify the user's mobile via MCP and hand off appropriately."""
         ud = self.session.userdata
         digits = re.sub(r"[^\d+]", "", mobile)
@@ -41,15 +42,12 @@ class MultiAgent(Agent):
         ud.user_mobile = digits
         ud.state = SessionState.AUTHENTICATING
 
-        ok, user_id = await self._mcp.authenticate_mobile(digits)
+        ok, user_id, name = await self._mcp.authenticate_mobile(digits)
         if ok and user_id:
             ud.is_authenticated = True
             ud.user_id = user_id
             ud.state = SessionState.MAIN
-            # greet after auth then proceed to user agent
-            return GreetingAgent(), (
-                "Thanks. You're verified. Welcome back to GoCare."
-            )
+            return GreetingAgent(), (f"Thanks {name}. You're verified. Welcome back to GoCare.")
 
         ud.auth_attempts += 1
         if ud.auth_attempts >= 3:

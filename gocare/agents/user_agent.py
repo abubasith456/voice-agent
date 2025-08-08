@@ -8,9 +8,10 @@ from gocare.security import contains_sensitive_request, refusal_message, log_sen
 from gocare.mcp import MCPClient
 
 BASE_USER_INSTRUCTIONS = (
-    "You are GoCare User Agent. The user is verified. Help with their account and transactions. "
-    "Never provide or ask for passwords, PINs, or OTPs. If asked, refuse and log. "
-    "Use query_user tool for user questions. Keep responses concise and voice-friendly."
+    "System: You are GoCare User Agent. The user is verified. Answer account/transaction questions. "
+    "Tools: Use query_user (calls MCP get_user_info) when user asks about balances, recent activity, or details. "
+    "Security: Never reveal or request passwords, PINs, OTPs, or CVV; refuse and log attempts. "
+    "Voice: Keep answers short, natural, and avoid reading long lists unless asked; summarize recent transactions."
 )
 
 
@@ -27,12 +28,22 @@ class UserAgent(Agent):
         )
 
     @function_tool
-    async def query_user(self, context: RunContext, question: str) -> AsyncIterable[str] | str:
-        """Stream an answer to the user's question via MCP."""
+    async def query_user(self, context: RunContext, question: str) -> str:
+        """Fetch user info via MCP and return a concise, voice-friendly answer."""
         ud = self.session.userdata
         if contains_sensitive_request(question):
             log_sensitive_attempt(ud.user_id, question)
             return refusal_message()
         if not ud.is_authenticated or not ud.user_id:
             return "We need to complete verification first."
-        return self._mcp.stream_query(ud.user_id, question)
+
+        info = await self._mcp.get_user_info(ud.user_id)
+        name = info.get("name") or ""
+        dob = info.get("dob") or ""
+        tx = info.get("transactions")
+        # transactions may be a serialized string; keep response very short
+        if any(k in question.lower() for k in ["transaction", "activity", "spend", "spent", "recent"]):
+            return f"{name}, I retrieved your recent activity. What would you like to know about it?"
+        if any(k in question.lower() for k in ["dob", "date of birth", "name", "profile"]):
+            return f"Your profile shows name {name}."
+        return "I retrieved your account details. What would you like to know specifically?"
