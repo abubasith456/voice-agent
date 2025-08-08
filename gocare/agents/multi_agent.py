@@ -15,6 +15,7 @@ BASE_MULTI_INSTRUCTIONS = (
     "If authentication succeeds, immediately call the function tool 'switch_to_greeting' with {user_id: <string>, name: <string>} to greet the user by name. "
     "Only when the user explicitly asks for personal information (profile, DOB, address, transactions, balances), switch to the MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using the external tool 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. Never ask the user for their user ID. "
     "As you respond, include the user's name naturally in every message once known. "
+    "Switching rule: When you invoke 'switch_to_greeting' or 'switch_to_main', do not produce any other user-facing text in that turn; the tool's returned message is the only output. "
     "If authentication fails, politely ask again; after multiple failures, inform that access is locked (but do not mention counts). "
     "Confidentiality: Never ask for or reveal secrets (password, PIN, OTP, CVV); refuse such requests. "
     "Tooling Disclosure: Do not mention tool names, function calls, schemas, or internal processes to the user. "
@@ -46,7 +47,10 @@ class MultiAgent(Agent):
             f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
             "When calling external tools such as get_user_info, always pass user_id exactly as shown here. Do not ask the user for their user ID."
         )
-        return GreetingAgent(extra_instructions=extra), ""
+        greet_text = (
+            f"Hello {ud.user_name}. How can I help you today?" if ud.user_name else "Hello. How can I help you today?"
+        )
+        return GreetingAgent(extra_instructions=extra), greet_text
 
     @function_tool
     async def switch_to_main(self, context: RunContext) -> tuple[Agent, str]:

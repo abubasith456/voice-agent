@@ -20,14 +20,6 @@ class GreetingAgent(Agent):
         super().__init__(instructions=instructions_text)
 
     async def on_enter(self) -> None:
+        # Stay in MAIN and let the handoff message from switch_to_greeting be the only output
         self.session.userdata.state = SessionState.MAIN
-        name = (self.session.userdata.user_name or "").strip()
-        if name:
-            exact = f"Hello {name}. How can I help you today?"
-        else:
-            exact = "Hello. How can I help you today?"
-        await self.session.generate_reply(
-            instructions=(
-                f"Your next message must be exactly: '{exact}' Do not add, prepend, or append any other words."
-            )
-        )
+        return
