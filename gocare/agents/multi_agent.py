@@ -5,6 +5,7 @@ from livekit.agents import Agent, RunContext, function_tool
 
 from gocare.state import ConversationContext, SessionState
 from gocare.agents.greeting_agent import GreetingAgent
+from gocare.agents.main_agent import MainAgent
 
 MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 
@@ -12,7 +13,7 @@ BASE_MULTI_INSTRUCTIONS = (
     "System: You are the session orchestrator. "
     "Flow: (1) Greet and request the registered mobile number (no need to mention country code). (2) When a valid mobile number appears, immediately call the external tool 'authenticate_user' with {mobile_number: <string>}. "
     "If authentication succeeds, immediately call the function tool 'switch_to_greeting' with {user_id: <string>, name: <string>} to greet the user by name. "
-    "Only when the user explicitly asks for personal information (profile, DOB, address, transactions, balances), retrieve details using the external tool 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication, not the user's name. "
+    "Only when the user explicitly asks for personal information (profile, DOB, address, transactions, balances), switch to the MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using the external tool 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. Never ask the user for their user ID. "
     "As you respond, include the user's name naturally in every message once known. "
     "If authentication fails, politely ask again; after multiple failures, inform that access is locked (but do not mention counts). "
     "Confidentiality: Never ask for or reveal secrets (password, PIN, OTP, CVV); refuse such requests. "
@@ -41,5 +42,23 @@ class MultiAgent(Agent):
         ud.user_name = (name or "").strip()
         ud.is_authenticated = True
         ud.state = SessionState.MAIN
-        # Return greeting agent, but let it speak the welcome-by-name
-        return GreetingAgent(), ""
+        greeter = GreetingAgent()
+        # Inject authenticated context so downstream tool calls use the correct user_id
+        greeter.instructions = (
+            greeter.instructions
+            + f" Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
+              "When calling external tools such as get_user_info, always pass user_id exactly as shown here. Do not ask the user for their user ID."
+        )
+        return greeter, ""
+
+    @function_tool
+    async def switch_to_main(self, context: RunContext) -> tuple[Agent, str]:
+        """Switch to MainAgent for personal info queries using stored context (no arguments)."""
+        ud = self.session.userdata
+        main = MainAgent()
+        main.instructions = (
+            main.instructions
+            + f" Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
+              "When calling external tools such as get_user_info, always pass user_id exactly as shown here. Never ask the user for their user ID."
+        )
+        return main, ""
