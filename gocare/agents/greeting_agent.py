@@ -25,7 +25,6 @@ class GreetingAgent(Agent):
         super().__init__(instructions=BASE_GREETING_INSTRUCTIONS)
 
     async def on_enter(self) -> None:
-        self.instructions = BASE_GREETING_INSTRUCTIONS
         self.session.userdata.state = SessionState.MAIN
         await self.session.generate_reply(
             instructions=(
@@ -33,6 +32,6 @@ class GreetingAgent(Agent):
             )
         )
         # Immediately hand off to UserAgent
-        await self.session.handoff(UserAgent(), "How can I help with your transactions today?")
+        self.session.update_agent(UserAgent())
 
     # The mobile collection is now handled by MultiAgent

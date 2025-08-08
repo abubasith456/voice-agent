@@ -25,7 +25,6 @@ class MultiAgent(Agent):
         super().__init__(instructions=BASE_MULTI_INSTRUCTIONS)
 
     async def on_enter(self) -> None:
-        self.instructions = BASE_MULTI_INSTRUCTIONS
         self.session.userdata.state = SessionState.GREETING
         await self.session.generate_reply(
             instructions=(

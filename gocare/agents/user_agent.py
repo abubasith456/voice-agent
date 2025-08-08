@@ -4,7 +4,11 @@ from typing import Any
 from livekit.agents import Agent, RunContext, function_tool
 
 from gocare.state import ConversationContext, SessionState
-from gocare.security import contains_sensitive_request, refusal_message, log_sensitive_attempt
+from gocare.security import (
+    contains_sensitive_request,
+    refusal_message,
+    log_sensitive_attempt,
+)
 
 BASE_USER_INSTRUCTIONS = (
     "System: You are a post-auth assistant. The user is verified. Answer account/transaction questions. "
@@ -19,7 +23,6 @@ class UserAgent(Agent):
         super().__init__(instructions=BASE_USER_INSTRUCTIONS)
 
     async def on_enter(self) -> None:
-        self.instructions = BASE_USER_INSTRUCTIONS
         self.session.userdata.state = SessionState.MAIN
         await self.session.generate_reply(
             instructions="How can I help with your transactions today?"
