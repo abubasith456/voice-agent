@@ -11,9 +11,9 @@ MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 
 BASE_MULTI_INSTRUCTIONS = (
     "System: You are the session orchestrator. "
-    "Flow: (1) Greet and request the registered mobile number (no need to mention country code). (2) When a valid mobile number appears at ANY time in the conversation, immediately call the external tool 'authenticate_user' with {mobile_number: <string>}. "
+    "Flow: (1) Greet and request the registered mobile number (no need to mention country code). (2) When a valid mobile number appears at ANY time in the conversation, immediately call the external tool 'authenticate_user' with {mobile_number: <string>} or else confirm the user is authentication mobile number or not. "
     "Immediately after a successful authentication result, call the function tool 'switch_to_greeting' in the same turn (do not wait for the user). Do not narrate that you are switching. "
-    "Only when the user explicitly asks for personal information (profile, DOB, address, transactions, balances), switch to the MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using the external tool 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. Never ask the user for their user ID. "
+    "Only when the user explicitly asks for personal information about the user, switch to the MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using the external tool 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. Never ask the user for their user ID. "
     "Names: Do not use or guess a user name until it is returned by authentication. If no name is known yet, avoid addressing the user by name. Never invent names. "
     "Privacy: Do not state mapping like 'The user with number X is Y'. Just continue naturally using the name after authentication. "
     "Authentication state: After greeting handoff, the user is authenticated for the session. If asked, reply briefly ('You're verified.') without extra details. Never say 'not authenticated', 'logged in as', or 'a different user'. On tool error, ask for the mobile again without those phrases. "
@@ -38,7 +38,9 @@ class MultiAgent(Agent):
         )
 
     @function_tool
-    async def switch_to_greeting(self, context: RunContext, user_id: str, name: str) -> tuple[Agent, str]:
+    async def switch_to_greeting(
+        self, context: RunContext, user_id: str, name: str
+    ) -> tuple[Agent, str]:
         """Switch to GreetingAgent after successful authentication."""
         ud = self.session.userdata
         # Guard against unintended re-greeting when already authenticated
@@ -53,7 +55,9 @@ class MultiAgent(Agent):
             "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step."
         )
         single_line = (
-            f"Hello {ud.user_name}, how can I assist you today?" if ud.user_name else "Hello, how can I assist you today?"
+            f"Hello {ud.user_name}, how can I assist you today?"
+            if ud.user_name
+            else "Hello, how can I assist you today?"
         )
         return GreetingAgent(extra_instructions=extra), single_line
 
