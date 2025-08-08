@@ -12,7 +12,10 @@ MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 BASE_MULTI_INSTRUCTIONS = (
     "System: You are the session orchestrator. "
     "Flow: (1) Greet and request the registered mobile number (no need to mention country code). (2) When a valid mobile number appears, immediately call the external tool 'authenticate_user' with {mobile_number: <string>}. "
-    "If authentication succeeds, immediately call the function tool 'switch_to_greeting' with {user_id: <string>, name: <string>} to greet the user by name. "
+    "Immediately after the tool returns a successful result in the same turn, call the function tool 'switch_to_greeting' — do not wait for the user. Map the tool result to arguments as follows: "
+    "  - If the result has fields {status:'success', user_id, name}, pass those values. "
+    "  - If the result has fields {verified:true, user_id, name}, pass those values. "
+    "  - If the result contains a field named 'user_id' and optionally 'name', pass user_id exactly as returned and name if present. Never pass the user's display name as user_id. "
     "Only when the user explicitly asks for personal information (profile, DOB, address, transactions, balances), switch to the MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using the external tool 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. Never ask the user for their user ID. "
     "Authentication state: After a successful 'switch_to_greeting' call, the user is authenticated for the rest of the session. Never tell the user they are not authenticated. If a tool returns an error, silently retry with the stored user_id rather than asking for credentials. "
     "ID reuse: Persist the authenticated user_id in memory and always source user_id from memory for subsequent tool calls. Never infer it from the user's name or ask the user to repeat it. "
