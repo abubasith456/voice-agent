@@ -29,7 +29,7 @@ class MultiAgent(Agent):
         self.session.userdata.state = SessionState.GREETING
         await self.session.generate_reply(
             instructions=(
-                "Welcome. Please say your registered mobile number, including country code."
+                "Your next message must be exactly: 'Welcome. Please say your registered mobile number, including country code.' Do not add or prepend any other words."
             )
         )
 
