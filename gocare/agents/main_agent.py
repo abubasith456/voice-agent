@@ -9,7 +9,7 @@ from livekit.agents import Agent, RunContext, function_tool
 from gocare.state import ConversationContext, SessionState
 from gocare.security import contains_sensitive_request, refusal_message, log_sensitive_attempt
 
-MAIN_INSTRUCTIONS = (
+BASE_MAIN_INSTRUCTIONS = (
     "You are GoCare Main Agent. The user is verified. Help them with transaction-related questions. "
     "Never provide or ask for passwords, PINs, or OTPs. If the user requests these, refuse politely. "
     "Use the list_transactions tool if the user asks about recent activity. Keep replies concise and voice-friendly."
@@ -18,9 +18,10 @@ MAIN_INSTRUCTIONS = (
 
 class MainAgent(Agent[ConversationContext]):
     def __init__(self) -> None:
-        super().__init__(instructions=MAIN_INSTRUCTIONS)
+        super().__init__(instructions=BASE_MAIN_INSTRUCTIONS)
 
     async def on_enter(self) -> None:
+        self.instructions = BASE_MAIN_INSTRUCTIONS
         self.session.userdata.state = SessionState.MAIN
         await self.session.generate_reply(
             instructions="You're verified. How can I help with your transactions today?"

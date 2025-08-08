@@ -9,11 +9,12 @@ from livekit.agents import Agent, RunContext, function_tool
 from gocare.state import ConversationContext, SessionState
 from gocare.security import refusal_message, log_sensitive_attempt
 from gocare.agents.main_agent import MainAgent
+from gocare.agents.unauthorized_agent import UnauthorizedAgent
 
 MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 
 
-GREETING_INSTRUCTIONS = (
+BASE_GREETING_INSTRUCTIONS = (
     "You are GoCare Greeting Agent. Your job is to greet the user and collect their registered mobile number. "
     "Do not ask for passwords, OTPs, or PINs. If the user asks for such info, refuse politely. "
     "Once the user provides a valid mobile number, call the function submit_mobile with the parsed number in E.164-like format. "
@@ -23,9 +24,11 @@ GREETING_INSTRUCTIONS = (
 
 class GreetingAgent(Agent[ConversationContext]):
     def __init__(self) -> None:
-        super().__init__(instructions=GREETING_INSTRUCTIONS)
+        super().__init__(instructions=BASE_GREETING_INSTRUCTIONS)
 
     async def on_enter(self) -> None:
+        # Dynamically refine the prompt on entry
+        self.instructions = BASE_GREETING_INSTRUCTIONS
         self.session.userdata.state = SessionState.GREETING
         await self.session.generate_reply(
             instructions=(
@@ -61,7 +64,10 @@ class GreetingAgent(Agent[ConversationContext]):
         ud.auth_attempts += 1
         if ud.auth_attempts >= 3:
             ud.state = SessionState.UNAUTHORIZED
-            return "Verification failed multiple times. Please try again later."
+            return UnauthorizedAgent(), (
+                "Verification failed multiple times. Your access is locked. "
+                "You can try again later."
+            )
         return "That number could not be verified. Please try again, including your country code."
 
     @function_tool
