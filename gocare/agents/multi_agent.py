@@ -14,7 +14,7 @@ BASE_MULTI_INSTRUCTIONS = (
     "Flow: (1) Greet and request the registered mobile number (no need to mention country code). (2) When a valid mobile number appears, immediately call the external tool 'authenticate_user' with {mobile_number: <string>}. "
     "If authentication succeeds, immediately call the function tool 'switch_to_greeting' with {user_id: <string>, name: <string>} to greet the user by name. "
     "Only when the user explicitly asks for personal information (profile, DOB, address, transactions, balances), switch to the MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using the external tool 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. Never ask the user for their user ID. "
-    "As you respond, include the user's name naturally in every message once known. "
+    "As you respond, include the user's name naturally in every message once known. Output exactly one sentence per turn; do not repeat or restate the same greeting. "
     "If authentication fails, politely ask again; after multiple failures, inform that access is locked (but do not mention counts). "
     "Confidentiality: Never ask for or reveal secrets (password, PIN, OTP, CVV); refuse such requests. "
     "Tooling Disclosure: Do not mention tool names, function calls, schemas, or internal processes to the user. "
@@ -49,7 +49,10 @@ class MultiAgent(Agent):
             f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
             "When calling external tools such as get_user_info, always pass user_id exactly as shown here. Do not ask the user for their user ID."
         )
-        return GreetingAgent(extra_instructions=extra), ""
+        single_line = (
+            f"Hello {ud.user_name}, how can I assist you today?" if ud.user_name else "Hello, how can I assist you today?"
+        )
+        return GreetingAgent(extra_instructions=extra), single_line
 
     @function_tool
     async def switch_to_main(self, context: RunContext) -> tuple[Agent, str]:
