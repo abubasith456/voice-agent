@@ -42,23 +42,18 @@ class MultiAgent(Agent):
         ud.user_name = (name or "").strip()
         ud.is_authenticated = True
         ud.state = SessionState.MAIN
-        greeter = GreetingAgent()
-        # Inject authenticated context so downstream tool calls use the correct user_id
-        greeter.instructions = (
-            greeter.instructions
-            + f" Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
-              "When calling external tools such as get_user_info, always pass user_id exactly as shown here. Do not ask the user for their user ID."
+        extra = (
+            f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
+            "When calling external tools such as get_user_info, always pass user_id exactly as shown here. Do not ask the user for their user ID."
         )
-        return greeter, ""
+        return GreetingAgent(extra_instructions=extra), ""
 
     @function_tool
     async def switch_to_main(self, context: RunContext) -> tuple[Agent, str]:
         """Switch to MainAgent for personal info queries using stored context (no arguments)."""
         ud = self.session.userdata
-        main = MainAgent()
-        main.instructions = (
-            main.instructions
-            + f" Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
-              "When calling external tools such as get_user_info, always pass user_id exactly as shown here. Never ask the user for their user ID."
+        extra = (
+            f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
+            "When calling external tools such as get_user_info, always pass user_id exactly as shown here. Never ask the user for their user ID."
         )
-        return main, ""
+        return MainAgent(extra_instructions=extra), ""

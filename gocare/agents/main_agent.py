@@ -13,8 +13,11 @@ BASE_MAIN_INSTRUCTIONS = (
 
 
 class MainAgent(Agent):
-    def __init__(self) -> None:
-        super().__init__(instructions=BASE_MAIN_INSTRUCTIONS)
+    def __init__(self, extra_instructions: str | None = None) -> None:
+        instructions_text = BASE_MAIN_INSTRUCTIONS
+        if extra_instructions:
+            instructions_text = instructions_text + " " + extra_instructions
+        super().__init__(instructions=instructions_text)
 
     async def on_enter(self) -> None:
         self.session.userdata.state = SessionState.MAIN
