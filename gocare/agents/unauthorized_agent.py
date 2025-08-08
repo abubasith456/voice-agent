@@ -6,7 +6,7 @@ from gocare.state import ConversationContext, SessionState
 
 
 LOCKED_INSTRUCTIONS = (
-    "You are GoCare Unauthorized Agent. The user failed verification. Kindly inform them that access is locked and provide safe next steps."
+    "You are an unauthorized-state agent. The user failed verification. Kindly inform them that access is locked and provide safe next steps."
 )
 
 

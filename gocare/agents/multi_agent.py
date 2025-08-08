@@ -11,7 +11,7 @@ from gocare.agents.unauthorized_agent import UnauthorizedAgent
 MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 
 BASE_MULTI_INSTRUCTIONS = (
-    "System: You are GoCare MultiAgent Orchestrator. "
+    "System: You are a session orchestrator. "
     "When the user provides a mobile number, call MCP tool 'authenticate_user' with {mobile_number: <string>}. "
     "If authentication succeeds, call the function tool 'handoff_to_greeting' with the user's display name. "
     "Security: Never ask for or reveal secrets (password, PIN, OTP, CVV). If asked, refuse. "
@@ -28,7 +28,7 @@ class MultiAgent(Agent):
         self.session.userdata.state = SessionState.GREETING
         await self.session.generate_reply(
             instructions=(
-                "Welcome to GoCare. Please say your registered mobile number, including country code."
+                "Welcome. Please say your registered mobile number, including country code."
             )
         )
 

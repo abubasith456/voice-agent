@@ -15,8 +15,8 @@ MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 
 
 BASE_GREETING_INSTRUCTIONS = (
-    "You are GoCare Greeting Agent. The user has just been verified. "
-    "Offer a friendly, concise welcome, then transition to the UserAgent."
+    "You are a post-auth greeting agent. The user has just been verified. "
+    "Offer a friendly, concise welcome, then transition to the query agent."
 )
 
 
@@ -29,7 +29,7 @@ class GreetingAgent(Agent):
         self.session.userdata.state = SessionState.MAIN
         await self.session.generate_reply(
             instructions=(
-                "Welcome to GoCare. You're all set. I'll connect you to your assistant to help with your transactions."
+                "You're all set. I'll connect you to your assistant to help with your transactions."
             )
         )
         # Immediately hand off to UserAgent

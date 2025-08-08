@@ -7,7 +7,7 @@ from gocare.state import ConversationContext, SessionState
 from gocare.security import contains_sensitive_request, refusal_message, log_sensitive_attempt
 
 BASE_USER_INSTRUCTIONS = (
-    "System: You are GoCare User Agent. The user is verified. Answer account/transaction questions. "
+    "System: You are a post-auth assistant. The user is verified. Answer account/transaction questions. "
     "When asked about profile or transactions, call MCP tool 'get_user_info' with {user_id: <string>}. "
     "Security: Never reveal or request passwords, PINs, OTPs, or CVV; refuse and log attempts. "
     "Voice: Keep answers short and natural; summarize transactions unless asked to enumerate."
