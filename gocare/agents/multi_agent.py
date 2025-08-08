@@ -41,4 +41,5 @@ class MultiAgent(Agent):
         ud.user_name = (name or "").strip()
         ud.is_authenticated = True
         ud.state = SessionState.MAIN
-        return MainAgent(), (f"Welcome {ud.user_name}, how can I help with your transactions today?" if ud.user_name else "How can I help with your transactions today?")
+        # Return an empty handoff message so only MainAgent.on_enter speaks
+        return MainAgent(), ""
