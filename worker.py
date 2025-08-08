@@ -1,48 +1,35 @@
 from __future__ import annotations
 
-import asyncio
-import os
+from dotenv import load_dotenv
 from loguru import logger
 
-from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli
-from livekit.agents.voice_assistant import VoiceAssistant
-from livekit.plugins.deepgram import DeepgramSTT, DeepgramTTS
+from livekit.agents import JobContext, WorkerOptions, cli, AgentSession, RoomInputOptions
+from livekit.plugins import deepgram, openai, silero
 
-from gocare.config import get_settings
-from gocare.manager import MultiAgentManager
+from gocare.state import ConversationContext
+from gocare.agents.greeting_agent import GreetingAgent
+
+
+load_dotenv()
 
 
 async def entrypoint(ctx: JobContext) -> None:
-    settings = get_settings()
+    await ctx.connect()
 
-    stt = DeepgramSTT(api_key=settings.deepgram_api_key, model="nova-2")
-    tts = DeepgramTTS(api_key=settings.deepgram_api_key, voice="aura-asteria-en")
-
-    manager = MultiAgentManager()
-
-    assistant = VoiceAssistant(
-        stt=stt,
-        tts=tts,
-        vad_enabled=True,
-        allow_interruptions=True,
+    session = AgentSession[ConversationContext](
+        vad=silero.VAD.load(),
+        stt=deepgram.STT(model="nova-3", language="en"),
+        llm=openai.LLM(model="gpt-4o-mini"),  # Point OPENAI_BASE_URL to OpenRouter to use OpenRouter
+        tts=deepgram.TTS(model="aura-asteria-en"),
+        userdata=ConversationContext(),
     )
 
-    await assistant.start(ctx)
-
-    # Send initial greeting
-    initial = await manager.start()
-    await assistant.say(initial)
-
-    @assistant.on("transcript")
-    async def on_transcript(text: str) -> None:
-        try:
-            reply = await manager.handle_user_text(text)
-            if reply:
-                await assistant.say(reply)
-        except Exception as e:
-            logger.exception("Error handling transcript: {}", e)
-            await assistant.say("Sorry, I ran into an error.")
+    await session.start(
+        agent=GreetingAgent(),
+        room=ctx.room,
+        room_input_options=RoomInputOptions(),
+    )
 
 
 if __name__ == "__main__":
-    cli.run_app(entrypoint, WorkerOptions(auto_subscribe=AutoSubscribe.AUDIO_ONLY))
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))

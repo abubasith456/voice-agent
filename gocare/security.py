@@ -3,12 +3,12 @@ from __future__ import annotations
 from loguru import logger
 
 SENSITIVE_KEYWORDS = {
-    "password", "passcode", "otp", "pin", "secret",
+    "password", "passcode", "otp", "o.t.p", "pin", "p.i.n", "secret", "cvv", "c.v.v"
 }
 
 
 def contains_sensitive_request(text: str) -> bool:
-    lower = text.lower()
+    lower = (text or "").lower()
     return any(keyword in lower for keyword in SENSITIVE_KEYWORDS)
 
 
