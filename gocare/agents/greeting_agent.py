@@ -20,7 +20,7 @@ BASE_GREETING_INSTRUCTIONS = (
 )
 
 
-class GreetingAgent(Agent[ConversationContext]):
+class GreetingAgent(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=BASE_GREETING_INSTRUCTIONS)
 

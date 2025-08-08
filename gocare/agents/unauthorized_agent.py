@@ -10,7 +10,7 @@ LOCKED_INSTRUCTIONS = (
 )
 
 
-class UnauthorizedAgent(Agent[ConversationContext]):
+class UnauthorizedAgent(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=LOCKED_INSTRUCTIONS)
 

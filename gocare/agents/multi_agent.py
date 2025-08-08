@@ -17,7 +17,7 @@ BASE_MULTI_INSTRUCTIONS = (
 )
 
 
-class MultiAgent(Agent[ConversationContext]):
+class MultiAgent(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=BASE_MULTI_INSTRUCTIONS)
         self._mcp = MCPClient()

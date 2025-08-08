@@ -14,7 +14,7 @@ BASE_USER_INSTRUCTIONS = (
 )
 
 
-class UserAgent(Agent[ConversationContext]):
+class UserAgent(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=BASE_USER_INSTRUCTIONS)
         self._mcp = MCPClient()

@@ -16,7 +16,7 @@ load_dotenv()
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
 
-    session = AgentSession[ConversationContext](
+    session = AgentSession(
         vad=silero.VAD.load(),
         stt=deepgram.STT(model="nova-3", language="en"),
         llm=openai.LLM(model="gpt-4o-mini"),  # set OPENAI_BASE_URL to point to OpenRouter
