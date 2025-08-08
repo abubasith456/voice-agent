@@ -13,7 +13,8 @@ MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 BASE_MULTI_INSTRUCTIONS = (
     "System: You are a session orchestrator. "
     "When the user provides a mobile number, call MCP tool 'authenticate_user' with {mobile_number: <string>}. "
-    "If authentication succeeds, call the function tool 'handoff_to_greeting' with the user's display name. "
+    "If authentication succeeds, include the token [USER_AUTHENTICATED] and then call the function tool 'handoff_to_greeting' with {user_id, name}. "
+    "If authentication fails 3 times, include the token [USER_UNAUTHORIZED] and stop. "
     "Security: Never ask for or reveal secrets (password, PIN, OTP, CVV). If asked, refuse. "
     "Voice: Keep replies concise and natural."
 )
@@ -33,9 +34,10 @@ class MultiAgent(Agent):
         )
 
     @function_tool
-    async def handoff_to_greeting(self, context: RunContext, name: str) -> tuple[Agent, str]:
+    async def handoff_to_greeting(self, context: RunContext, user_id: str, name: str) -> tuple[Agent, str]:
         """Handoff to GreetingAgent after successful authentication."""
         ud = self.session.userdata
         ud.is_authenticated = True
+        ud.user_id = user_id
         ud.state = SessionState.MAIN
-        return GreetingAgent(), f"Thanks {name}. You're verified. Welcome back to GoCare."
+        return GreetingAgent(), f"Thanks {name}. You're verified."

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from livekit.agents import JobContext, WorkerOptions, cli, AgentSession, RoomInputOptions
-from livekit.agents import mcp as lk_mcp
+from livekit.agents import mcp  # import as mcp for clarity
 from livekit.plugins import deepgram, openai, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
@@ -39,7 +39,7 @@ async def entrypoint(ctx: JobContext) -> None:
 
     # Register MCP server(s) so the LLM can choose tools directly
     mcp_url = os.getenv("MCP_SERVER_URL", "").strip()
-    mcp_servers = [lk_mcp.MCPServerHTTP(url=mcp_url)] if mcp_url else None
+    mcp_servers = [mcp.MCPServerHTTP(url=mcp_url)] if mcp_url else None
 
     session = AgentSession(
         vad=silero.VAD.load(),
