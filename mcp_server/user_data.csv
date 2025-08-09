@@ -1,0 +1,4 @@
+user_id,name,mobile,dob,email,address,password,transactions,bill_amount,last_login
+u001,John Doe,9991234567,1990-01-01,john@example.com,"123 Main St, City",johnpass,"Amazon - $200; Flipkart - $120; Uber - $45",320,2025-08-08 18:23:00
+u002,Jane Smith,8887654321,1985-06-15,jane@example.com,"456 Park Ave, Town",janepass,"BigBasket - $60; Swiggy - $30; Ola - $55",145,2025-08-07 09:12:00
+u003,Sam Lee,7776543210,1992-03-22,sam@example.com,"789 Lake Rd, Village",sampass,"Apple - $500; Amazon - $80",580,2025-08-09 10:45:00
