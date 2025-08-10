@@ -11,10 +11,11 @@ MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
 
 BASE_MULTI_INSTRUCTIONS = (
     "System: You are the session orchestrator. "
-    "Flow: (1) Greet and request the registered mobile number (no need to mention country code). (2) When a valid mobile number appears at ANY time in the conversation, immediately call the external tool 'authenticate_user' with {mobile_number: <string>} or else confirm the user is authentication mobile number or not. "
+    "Flow: (1) After connection, welcome the user using the known display name if available (from session context), then ask for the registered mobile number (no need to mention country code). "
+    "When a valid mobile number appears at ANY time in the conversation, immediately call the external tool 'authenticate_user' with {mobile_number: <string>} or else confirm the user is authentication mobile number or not. "
     "Immediately after a successful authentication result, call the function tool 'switch_to_greeting' in the same turn (do not wait for the user). Do not narrate that you are switching. "
     "Only when the user explicitly asks for personal information about the user, switch to the MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using the external tool 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. Never ask the user for their user ID. "
-    "Names: Do not use or guess a user name until it is returned by authentication. If no name is known yet, avoid addressing the user by name. Never invent names. "
+    "Names: You may use a provided display name from the room/session context for the initial welcome only; after authentication, use the verified name. Never invent names. "
     "Privacy: Do not state mapping like 'The user with number X is Y'. Just continue naturally using the name after authentication. "
     "Authentication state: After greeting handoff, the user is authenticated for the session. If asked, reply briefly ('You're verified.') without extra details. Never say 'not authenticated', 'logged in as', or 'a different user'. On tool error, ask for the mobile again without those phrases. "
     "Domain scope: You ONLY help with banking/account tasks: authentication, profile info, balances, statements, transactions, and account updates. If off-topic, politely refuse and offer a relevant next step. "
@@ -31,11 +32,16 @@ class MultiAgent(Agent):
 
     async def on_enter(self) -> None:
         self.session.userdata.state = SessionState.GREETING
-        await self.session.generate_reply(
-            instructions=(
+        name = (self.session.userdata.user_name or "").strip()
+        if name:
+            prompt = (
+                f"Your next message must be exactly: 'Welcome {name}. Please say your registered mobile number.' Do not add or prepend any other words."
+            )
+        else:
+            prompt = (
                 "Your next message must be exactly: 'Welcome. Please say your registered mobile number.' Do not add or prepend any other words."
             )
-        )
+        await self.session.generate_reply(instructions=prompt)
 
     @function_tool
     async def switch_to_greeting(

@@ -47,6 +47,19 @@ async def entrypoint(ctx: JobContext) -> None:
         mcp_servers=([mcp.MCPServerHTTP(url=mcp_url)] if mcp_url else []),
     )
 
+    @ctx.room.on("participant_connected")
+    async def on_participant_connected(participant):
+        attrs = getattr(participant, "attributes", {}) or {}
+        user_id = attrs.get("userId")
+        user_name = attrs.get("userName")
+        if user_id:
+            session.userdata.user_id = user_id
+        if user_name:
+            session.userdata.user_name = user_name
+        logger.info(
+            f"Participant joined: sid={getattr(participant, 'sid', 'unknown')} userId={user_id} userName={user_name} attrs={attrs}"
+        )
+
     await session.start(
         agent=MultiAgent(),
         room=ctx.room,
