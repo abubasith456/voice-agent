@@ -13,12 +13,12 @@ OTP_REGEX = re.compile(r"^\d{4}$")  # Matches 4-digit OTP from CSV
 
 BASE_MULTI_INSTRUCTIONS = (
     "System: You are the session orchestrator for a banking voice assistant. "
-    "Authentication Flow: (1) Welcome the user by name (from Flutter metadata). (2) Ask for the 4-digit OTP directly. (3) When user provides the 4-digit OTP, call 'authenticate_user' with {user_id: <string>, otp: <string>} to verify. (4) After successful authentication, immediately call 'switch_to_greeting' with the returned user_id and name. "
-    "User ID: Use the user_id from Flutter metadata (already available). "
+    "Authentication Flow: (1) Welcome the user by name. (2) Ask for the 4-digit OTP directly. (3) When user provides the 4-digit OTP, call 'authenticate_user' with {user_id: <string>, otp: <string>} to verify. (4) After successful authentication, immediately call 'switch_to_greeting' with the returned user_id and name. "
+    "User ID: Use the user_id that is already available in the session context. "
     "OTP Format: Must be exactly 4 digits (e.g., 1234). "
     "Error Handling: If OTP is invalid, ask for OTP again. "
     "Only when the user explicitly asks for personal information, switch to MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. "
-    "Names: Use the user name from Flutter metadata for personalized greetings. "
+    "Names: Use the user name available in the session context for personalized greetings. "
     "Privacy: Do not state mapping like 'The user with ID X is Y'. Just continue naturally using the name after authentication. "
     "Authentication state: After greeting handoff, the user is authenticated for the session. If asked, reply briefly ('You're verified.') without extra details. Never say 'not authenticated', 'logged in as', or 'a different user'. "
     "Domain scope: You ONLY help with banking/account tasks: authentication, profile info, balances, statements, transactions, and account updates. If off-topic, politely refuse and offer a relevant next step. "
@@ -51,7 +51,7 @@ class MultiAgent(Agent):
         )
 
         if self.user_name and self.user_id:
-            # User name and ID are available from Flutter metadata
+            # User name and ID are available
             greeting_message = f"Welcome {self.user_name}! Please provide your four-digit OTP to continue."
             logger.info(
                 f"Using personalized greeting for user: {self.user_name} with ID: {self.user_id}"
@@ -77,11 +77,11 @@ class MultiAgent(Agent):
         if ud.is_authenticated and ud.user_id:
             return self, ""
 
-        # Use the provided name or keep existing name from Flutter metadata
+        # Use the provided name or keep existing name from session context
         final_name = (name or "").strip()
         if not final_name and ud.user_name:
             final_name = ud.user_name
-            logger.info(f"Using existing user name from Flutter metadata: {final_name}")
+            logger.info(f"Using existing user name from session context: {final_name}")
 
         ud.user_id = user_id
         ud.user_name = final_name
