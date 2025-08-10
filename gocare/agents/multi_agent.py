@@ -90,6 +90,7 @@ class MultiAgent(Agent):
 
         extra = (
             f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
+            f"When calling MCP tools like 'get_user_info', 'get_user_bill', 'get_user_contact', or 'get_user_last_login', always use user_id='{ud.user_id}'. "
             "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step. "
             "IMPORTANT: Never mention tool names, function calls, or internal processes to the user. Keep responses natural and conversational."
         )
@@ -110,6 +111,7 @@ class MultiAgent(Agent):
         ud = self.session.userdata
         extra = (
             f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
+            f"When calling MCP tools like 'get_user_info', 'get_user_bill', 'get_user_contact', or 'get_user_last_login', always use user_id='{ud.user_id}'. "
             "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step. "
             "IMPORTANT: Never mention tool names, function calls, or internal processes to the user. Keep responses natural and conversational."
         )
