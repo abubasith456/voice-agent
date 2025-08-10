@@ -50,18 +50,20 @@ with open(USER_DATA_FILE, newline="") as csvfile:
 
 @mcp.tool(
     name="authenticate_user",
-    description="Authenticate a user by mobile number.",
+    description="Authenticate a user by user ID and 4-digit OTP.",
     tags={"Authentication"},
 )
-async def authenticate_user(mobile_number: str):
-    for user in users.values():
-        if user["mobile"] == mobile_number:
-            return {
-                "status": "success",
-                "user_id": user["user_id"],
-                "name": user["name"],
-            }
-    raise HTTPException(status_code=401, detail="Mobile number not found")
+async def authenticate_user(user_id: str, otp: str):
+    user = users.get(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user["otp"] != otp:
+        raise HTTPException(status_code=401, detail="OTP is wrong")
+    return {
+        "status": "success",
+        "user_id": user["user_id"],
+        "name": user["name"],
+    }
 
 
 @mcp.tool(

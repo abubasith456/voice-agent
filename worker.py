@@ -27,25 +27,25 @@ load_dotenv()
 
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
-    
-    # Set up room event handlers to properly handle user connections
-    def handle_participant_connected(participant):
-        """Handle when a user connects to the room."""
-        asyncio.create_task(process_participant_connection(participant, ctx))
-    
-    def handle_participant_disconnected(participant):
-        """Handle when a user disconnects from the room."""
-        asyncio.create_task(process_participant_disconnection(participant))
-    
-    def handle_data_received(data_packet, participant):
-        """Handle data messages from users."""
-        asyncio.create_task(process_data_message(data_packet, participant))
-    
-    # Register event handlers
-    ctx.room.on("participant_connected", handle_participant_connected)
-    ctx.room.on("participant_disconnected", handle_participant_disconnected)
-    ctx.room.on("data_received", handle_data_received)
-    
+
+    participant = await ctx.wait_for_participant()
+    logger.info(f"Participant metadata: {participant.metadata}")
+
+    user_name = None
+    user_id = None
+
+    if participant.metadata:
+        try:
+            metadata = json.loads(participant.metadata)
+            logger.info(f"Participant metadata loaded: {metadata}")
+
+            user_name = metadata.get("userName", "").strip()
+            user_id = metadata.get("userId", "").strip()
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse participant metadata: {e}")
+            metadata = {}
+
     logger.info(f"Room '{ctx.room.name}' is ready to accept connections")
     logger.info(f"Room SID: {ctx.room.sid}")
 
@@ -78,182 +78,6 @@ async def entrypoint(ctx: JobContext) -> None:
             noise_cancellation=noise_cancellation.BVC(),
         ),
     )
-
-
-async def process_participant_connection(participant, ctx: JobContext):
-    """Process when a user connects."""
-    try:
-        logger.info(f"User connected: {participant.identity}")
-        logger.info(f"Participant SID: {participant.sid}")
-        
-        # Extract user metadata from Flutter client
-        user_id = None
-        user_name = None
-        
-        if participant.metadata:
-            logger.info(f"Participant metadata: {participant.metadata}")
-            try:
-                # Parse the JSON metadata from Flutter
-                metadata = json.loads(participant.metadata)
-                user_id = metadata.get('userId')
-                user_name = metadata.get('userName')
-                
-                logger.info(f"Extracted user info - ID: {user_id}, Name: {user_name}")
-                
-                # Set user information in the conversation context
-                if hasattr(ctx, 'session') and ctx.session and ctx.session.userdata:
-                    ctx.session.userdata.user_id = user_id
-                    ctx.session.userdata.user_name = user_name
-                    logger.info(f"Set user data in conversation context: {user_name} ({user_id})")
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse participant metadata: {e}")
-            except Exception as e:
-                logger.error(f"Error extracting user metadata: {e}")
-        
-        # Check if participant has audio tracks
-        audio_tracks = [track for track in participant.audio_tracks.values() if track.is_subscribed]
-        logger.info(f"Participant has {len(audio_tracks)} audio tracks")
-        
-        # Check if participant has video tracks
-        video_tracks = [track for track in participant.video_tracks.values() if track.is_subscribed]
-        logger.info(f"Participant has {len(video_tracks)} video tracks")
-        
-        # Send personalized welcome message to the user
-        await send_personalized_welcome_message(participant, user_name)
-        
-    except Exception as e:
-        logger.error(f"Error processing participant connection: {e}")
-
-
-async def process_participant_disconnection(participant):
-    """Process when a user disconnects."""
-    try:
-        logger.info(f"User disconnected: {participant.identity}")
-        # Clean up any resources associated with this participant
-    except Exception as e:
-        logger.error(f"Error processing participant disconnection: {e}")
-
-
-async def process_data_message(data_packet, participant):
-    """Process data messages from users."""
-    try:
-        logger.info(f"Received data from {participant.identity}: {data_packet.data}")
-        
-        # Handle different types of messages
-        if isinstance(data_packet.data, dict):
-            message_type = data_packet.data.get('type')
-            if message_type == 'text':
-                await handle_text_message(data_packet.data.get('text', ''), participant)
-            elif message_type == 'command':
-                await handle_command_message(data_packet.data.get('command', ''), participant)
-            elif message_type == 'chat':
-                await handle_chat_message(data_packet.data.get('message', ''), participant)
-        
-    except Exception as e:
-        logger.error(f"Error processing data message: {e}")
-
-
-async def send_personalized_welcome_message(participant, user_name: str = None):
-    """Send a personalized welcome message to the connected user."""
-    try:
-        if user_name:
-            welcome_message = f"Welcome {user_name}! I'm your voice assistant. How can I help you today?"
-        else:
-            welcome_message = "Welcome! I'm your voice assistant. How can I help you today?"
-        
-        welcome_data = {
-            'type': 'welcome',
-            'message': welcome_message,
-            'user_name': user_name,
-            'timestamp': asyncio.get_event_loop().time()
-        }
-        
-        # Send data to the specific participant
-        await participant.send_data(
-            data=welcome_data,
-            topic='system'
-        )
-        logger.info(f"Sent personalized welcome message to {participant.identity}: {user_name or 'Unknown'}")
-        
-    except Exception as e:
-        logger.error(f"Error sending personalized welcome message: {e}")
-
-
-async def handle_text_message(text: str, participant):
-    """Handle text messages from users."""
-    try:
-        logger.info(f"Processing text message from {participant.identity}: {text}")
-        
-        # Here you can integrate with your agent system
-        # For now, just echo back
-        response_data = {
-            'type': 'response',
-            'text': f'You said: {text}',
-            'timestamp': asyncio.get_event_loop().time()
-        }
-        
-        await participant.send_data(
-            data=response_data,
-            topic='chat'
-        )
-        
-    except Exception as e:
-        logger.error(f"Error handling text message: {e}")
-
-
-async def handle_chat_message(message: str, participant):
-    """Handle chat messages from users."""
-    try:
-        logger.info(f"Processing chat message from {participant.identity}: {message}")
-        
-        # Process the message with your agent system
-        response_data = {
-            'type': 'chat_response',
-            'message': f'Received your message: {message}',
-            'timestamp': asyncio.get_event_loop().time()
-        }
-        
-        await participant.send_data(
-            data=response_data,
-            topic='chat'
-        )
-        
-    except Exception as e:
-        logger.error(f"Error handling chat message: {e}")
-
-
-async def handle_command_message(command: str, participant):
-    """Handle command messages from users."""
-    try:
-        logger.info(f"Processing command from {participant.identity}: {command}")
-        
-        # Handle different commands
-        if command == 'start_conversation':
-            # Start the voice conversation
-            logger.info(f"Starting voice conversation for {participant.identity}")
-        elif command == 'stop_conversation':
-            # Stop the voice conversation
-            logger.info(f"Stopping voice conversation for {participant.identity}")
-        elif command == 'get_status':
-            # Get current status
-            logger.info(f"Getting status for {participant.identity}")
-        
-        # Send command acknowledgment
-        response_data = {
-            'type': 'command_response',
-            'command': command,
-            'status': 'processed',
-            'timestamp': asyncio.get_event_loop().time()
-        }
-        
-        await participant.send_data(
-            data=response_data,
-            topic='system'
-        )
-        
-    except Exception as e:
-        logger.error(f"Error handling command message: {e}")
 
 
 if __name__ == "__main__":
