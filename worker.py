@@ -26,18 +26,27 @@ load_dotenv()
 
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
-
-    # Example of how to properly handle async callbacks with LiveKit's .on() method:
-    # Instead of:
-    # @ctx.room.on("participant_connected")
-    # async def handle_participant_connected(participant):
-    #     await some_async_operation()
-    #
-    # Use this pattern:
-    # def handle_participant_connected(participant):
-    #     asyncio.create_task(some_async_operation(participant))
-    #
-    # ctx.room.on("participant_connected", handle_participant_connected)
+    
+    # Set up room event handlers to properly handle Flutter client connections
+    def handle_participant_connected(participant):
+        """Handle when a Flutter client connects to the room."""
+        asyncio.create_task(process_participant_connection(participant))
+    
+    def handle_participant_disconnected(participant):
+        """Handle when a Flutter client disconnects from the room."""
+        asyncio.create_task(process_participant_disconnection(participant))
+    
+    def handle_data_received(data_packet, participant):
+        """Handle data messages from Flutter client."""
+        asyncio.create_task(process_data_message(data_packet, participant))
+    
+    # Register event handlers
+    ctx.room.on("participant_connected", handle_participant_connected)
+    ctx.room.on("participant_disconnected", handle_participant_disconnected)
+    ctx.room.on("data_received", handle_data_received)
+    
+    logger.info(f"Room '{ctx.room.name}' is ready to accept connections")
+    logger.info(f"Room SID: {ctx.room.sid}")
 
     # Build LLM using AsyncClient (e.g., NVIDIA via OpenAI-compatible endpoint)
     llm_api_key = os.getenv("LLM_API_KEY", "").strip()
@@ -68,6 +77,125 @@ async def entrypoint(ctx: JobContext) -> None:
             noise_cancellation=noise_cancellation.BVC(),
         ),
     )
+
+
+async def process_participant_connection(participant):
+    """Process when a Flutter client connects."""
+    try:
+        logger.info(f"Flutter client connected: {participant.identity}")
+        logger.info(f"Participant SID: {participant.sid}")
+        
+        # Log participant attributes (from Flutter client)
+        if participant.metadata:
+            logger.info(f"Participant metadata: {participant.metadata}")
+        
+        # Check if participant has audio tracks
+        audio_tracks = [track for track in participant.audio_tracks.values() if track.is_subscribed]
+        logger.info(f"Participant has {len(audio_tracks)} audio tracks")
+        
+        # Send welcome message to the client
+        await send_welcome_message(participant)
+        
+    except Exception as e:
+        logger.error(f"Error processing participant connection: {e}")
+
+
+async def process_participant_disconnection(participant):
+    """Process when a Flutter client disconnects."""
+    try:
+        logger.info(f"Flutter client disconnected: {participant.identity}")
+        # Clean up any resources associated with this participant
+    except Exception as e:
+        logger.error(f"Error processing participant disconnection: {e}")
+
+
+async def process_data_message(data_packet, participant):
+    """Process data messages from Flutter client."""
+    try:
+        logger.info(f"Received data from {participant.identity}: {data_packet.data}")
+        
+        # Handle different types of messages
+        if isinstance(data_packet.data, dict):
+            message_type = data_packet.data.get('type')
+            if message_type == 'text':
+                await handle_text_message(data_packet.data.get('text', ''), participant)
+            elif message_type == 'command':
+                await handle_command_message(data_packet.data.get('command', ''), participant)
+        
+    except Exception as e:
+        logger.error(f"Error processing data message: {e}")
+
+
+async def send_welcome_message(participant):
+    """Send a welcome message to the connected Flutter client."""
+    try:
+        welcome_data = {
+            'type': 'welcome',
+            'message': 'Welcome to the voice assistant! I\'m ready to help you.',
+            'timestamp': asyncio.get_event_loop().time()
+        }
+        
+        # Send data to the specific participant
+        await participant.send_data(
+            data=welcome_data,
+            topic='system'
+        )
+        logger.info(f"Sent welcome message to {participant.identity}")
+        
+    except Exception as e:
+        logger.error(f"Error sending welcome message: {e}")
+
+
+async def handle_text_message(text: str, participant):
+    """Handle text messages from Flutter client."""
+    try:
+        logger.info(f"Processing text message from {participant.identity}: {text}")
+        
+        # Here you can integrate with your agent system
+        # For now, just echo back
+        response_data = {
+            'type': 'response',
+            'text': f'You said: {text}',
+            'timestamp': asyncio.get_event_loop().time()
+        }
+        
+        await participant.send_data(
+            data=response_data,
+            topic='chat'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error handling text message: {e}")
+
+
+async def handle_command_message(command: str, participant):
+    """Handle command messages from Flutter client."""
+    try:
+        logger.info(f"Processing command from {participant.identity}: {command}")
+        
+        # Handle different commands
+        if command == 'start_conversation':
+            # Start the voice conversation
+            pass
+        elif command == 'stop_conversation':
+            # Stop the voice conversation
+            pass
+        
+        # Send command acknowledgment
+        response_data = {
+            'type': 'command_response',
+            'command': command,
+            'status': 'processed',
+            'timestamp': asyncio.get_event_loop().time()
+        }
+        
+        await participant.send_data(
+            data=response_data,
+            topic='system'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error handling command message: {e}")
 
 
 if __name__ == "__main__":
