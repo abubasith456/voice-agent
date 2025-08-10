@@ -8,21 +8,24 @@ from gocare.state import ConversationContext, SessionState
 from gocare.agents.greeting_agent import GreetingAgent
 from gocare.agents.main_agent import MainAgent
 
-MOBILE_REGEX = re.compile(r"(\+?\d[\d\- ]{7,14}\d)")
+USER_ID_REGEX = re.compile(r'^u\d{3}$')  # Matches u001, u002, etc.
+OTP_REGEX = re.compile(r'^\d{6}$')  # Matches 6-digit OTP
 
 BASE_MULTI_INSTRUCTIONS = (
-    "System: You are the session orchestrator. "
-    "Flow: (1) Greet and request the registered mobile number (no need to mention country code). (2) When a valid mobile number appears at ANY time in the conversation, immediately call the external tool 'authenticate_user' with {mobile_number: <string>} or else confirm the user is authentication mobile number or not. "
-    "Immediately after a successful authentication result, call the function tool 'switch_to_greeting' in the same turn (do not wait for the user). Do not narrate that you are switching. "
-    "Only when the user explicitly asks for personal information about the user, switch to the MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using the external tool 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. Never ask the user for their user ID. "
+    "System: You are the session orchestrator for a banking voice assistant. "
+    "Authentication Flow: (1) Greet and request the user ID (format: u001, u002, etc.). (2) When a valid user ID appears, immediately call 'authenticate_user' with {user_id: <string>} to generate OTP. (3) Inform user that OTP is sent to their registered mobile. (4) When user provides the 6-digit OTP, call 'authenticate_user' with {user_id: <string>, otp: <string>} to verify. (5) After successful authentication, immediately call 'switch_to_greeting' with the returned user_id and name. "
+    "User ID Format: Must be exactly 3 characters starting with 'u' followed by 3 digits (e.g., u001, u002). "
+    "OTP Format: Must be exactly 6 digits (e.g., 123456). "
+    "Error Handling: If authentication fails, ask for user ID again. If OTP is invalid, ask for OTP again. "
+    "Only when the user explicitly asks for personal information, switch to MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. "
     "Names: Do not use or guess a user name until it is returned by authentication. If no name is known yet, avoid addressing the user by name. Never invent names. "
-    "Privacy: Do not state mapping like 'The user with number X is Y'. Just continue naturally using the name after authentication. "
-    "Authentication state: After greeting handoff, the user is authenticated for the session. If asked, reply briefly ('You're verified.') without extra details. Never say 'not authenticated', 'logged in as', or 'a different user'. On tool error, ask for the mobile again without those phrases. "
+    "Privacy: Do not state mapping like 'The user with ID X is Y'. Just continue naturally using the name after authentication. "
+    "Authentication state: After greeting handoff, the user is authenticated for the session. If asked, reply briefly ('You're verified.') without extra details. Never say 'not authenticated', 'logged in as', or 'a different user'. "
     "Domain scope: You ONLY help with banking/account tasks: authentication, profile info, balances, statements, transactions, and account updates. If off-topic, politely refuse and offer a relevant next step. "
     "Style: Natural, conversational, and concise. Use contractions. Output exactly one sentence per turn unless listing short factual items; do not repeat greetings. "
     "Tooling Disclosure: Do not mention tool names, function calls, schemas, or internal processes to the user. Do not output code/markers. "
     "Forbidden characters/markers: never output [, ], <, >, {, }, backticks, or text that looks like a function call (e.g., name(args)). If your draft contains any of these, rewrite it as plain natural language. "
-    "Voice: Read phone numbers as digit sequences, not currency; avoid protocol artifacts like |end|."
+    "Voice: Read user IDs as individual letters and numbers (e.g., 'u zero zero one'). Read OTPs as individual digits."
 )
 
 
@@ -38,11 +41,11 @@ class MultiAgent(Agent):
         
         if user_name:
             # User name is already available, provide a personalized greeting
-            greeting_message = f"Welcome {user_name}! Please say your registered mobile number."
+            greeting_message = f"Welcome {user_name}! Please provide your user ID to continue."
             logger.info(f"Using personalized greeting for user: {user_name}")
         else:
             # No user name available, use generic greeting
-            greeting_message = "Welcome. Please say your registered mobile number."
+            greeting_message = "Welcome! Please provide your user ID to continue."
             logger.info("Using generic greeting (no user name available)")
         
         await self.session.generate_reply(

@@ -1,6 +1,6 @@
 # Updated LiveKit Python Server
 
-The Python server has been updated to properly handle user connections, fix the async callback error, and provide personalized greetings using user metadata from Flutter.
+The Python server has been updated to properly handle user connections, fix the async callback error, provide personalized greetings using user metadata from Flutter, and implement a new user_id and OTP authentication flow.
 
 ## What Was Fixed
 
@@ -20,6 +20,12 @@ The Python server has been updated to properly handle user connections, fix the 
 - Set user information in conversation context
 - Provide personalized greetings using the user's name
 
+### 4. **New Authentication Flow** 🔐 **NEW**
+- **Old**: Mobile number authentication
+- **New**: User ID + OTP authentication
+- Two-step process: Request OTP → Verify OTP
+- Enhanced security with OTP expiration and attempt limits
+
 ## Key Changes
 
 ### `worker.py`
@@ -34,10 +40,21 @@ The Python server has been updated to properly handle user connections, fix the 
 - ✅ **NEW**: Check for existing user name from Flutter metadata
 - ✅ **NEW**: Provide personalized initial greetings
 - ✅ **NEW**: Use existing user name during authentication flow
+- ✅ **NEW**: Updated authentication flow for user_id + OTP
+- ✅ **NEW**: Improved prompts for banking assistant
 
 ### `gocare/agents/main_agent.py`
 - ✅ **NEW**: Enhanced logging for user name usage
 - ✅ **NEW**: Better handling of personalized greetings
+
+### `gocare/state.py`
+- ✅ **NEW**: Added OTP_PENDING state
+- ✅ **NEW**: Track OTP request status and pending user_id
+
+### `mcp_server/app.py`
+- ✅ **NEW**: Updated authenticate_user to handle user_id + OTP
+- ✅ **NEW**: OTP generation and verification
+- ✅ **NEW**: OTP expiration (5 minutes) and attempt limits (3 attempts)
 
 ### Event Handler Pattern
 ```python
@@ -70,6 +87,30 @@ if participant.metadata:
     ctx.session.userdata.user_name = user_name
 ```
 
+## New Authentication Flow
+
+### Step 1: Request OTP
+```
+User: "u001"
+Assistant: "OTP sent to your registered mobile number. Please provide the 6-digit OTP."
+```
+
+### Step 2: Verify OTP
+```
+User: "123456"
+Assistant: "Hello John, how can I assist you today?"
+```
+
+### User ID Format
+- Must be exactly 3 characters starting with 'u' followed by 3 digits
+- Examples: `u001`, `u002`, `u003`
+- Voice: Read as "u zero zero one"
+
+### OTP Format
+- Must be exactly 6 digits
+- Examples: `123456`, `000000`, `999999`
+- Voice: Read as individual digits
+
 ## Testing
 
 ### 1. Test Your Setup
@@ -82,12 +123,17 @@ python test_flutter_connection.py
 python test_user_metadata.py
 ```
 
-### 3. Start the Server
+### 3. Test Authentication Flow
+```bash
+python test_authentication_flow.py
+```
+
+### 4. Start the Server
 ```bash
 python worker.py
 ```
 
-### 4. Check Logs
+### 5. Check Logs
 Look for these messages when users connect:
 ```
 Room 'voice-assistant-room' is ready to accept connections
@@ -117,29 +163,46 @@ LLM_MODEL_NAME=gpt-4o-mini
 - ✅ **Data Communication**: Send/receive messages with users
 - ✅ **Personalized Welcome Messages**: Greet users by name ✨
 - ✅ **User Metadata Extraction**: Parse Flutter client metadata ✨
+- ✅ **User ID + OTP Authentication**: Enhanced security flow 🔐
+- ✅ **OTP Management**: Generation, verification, expiration 🔐
 - ✅ **Error Handling**: Robust error handling throughout
 - ✅ **Comprehensive Logging**: Track all events and issues
+
+## Authentication Security Features
+
+- 🔐 **OTP Generation**: 6-digit random OTP
+- 🔐 **OTP Expiration**: 5-minute validity period
+- 🔐 **Attempt Limits**: Maximum 3 failed attempts
+- 🔐 **User ID Validation**: Strict format validation
+- 🔐 **Secure Storage**: Temporary OTP storage (use Redis in production)
 
 ## Personalized Greetings Flow
 
 1. **Flutter Client**: Sets metadata with user info
 2. **Python Server**: Extracts metadata on connection
-3. **MultiAgent**: Uses user name for initial greeting
-4. **GreetingAgent**: Personalized welcome after authentication
-5. **MainAgent**: Continues using user name throughout session
+3. **MultiAgent**: "Welcome John! Please provide your user ID to continue."
+4. **Authentication**: User provides user_id → OTP → Verification
+5. **GreetingAgent**: "Hello John, how can I assist you today?"
+6. **MainAgent**: Continues using user name throughout session
 
-### Example Greetings
-- **With User Name**: "Welcome John! Please say your registered mobile number."
-- **Without User Name**: "Welcome. Please say your registered mobile number."
+### Example Conversation Flow
+```
+Assistant: "Welcome John! Please provide your user ID to continue."
+User: "u zero zero one"
+Assistant: "OTP sent to your registered mobile number. Please provide the 6-digit OTP."
+User: "one two three four five six"
+Assistant: "Hello John, how can I assist you today?"
+```
 
 ## Usage
 
 The server will now:
 1. **Detect user connections** and extract metadata
 2. **Send personalized welcome messages** using the user's name
-3. **Process data messages** from users
-4. **Handle commands** like start/stop conversation
-5. **Integrate with your agent system** for voice processing
-6. **Provide personalized greetings** throughout the conversation
+3. **Handle user_id + OTP authentication** with enhanced security
+4. **Process data messages** from users
+5. **Handle commands** like start/stop conversation
+6. **Integrate with your agent system** for voice processing
+7. **Provide personalized greetings** throughout the conversation
 
-Your existing Flutter code should now work properly with this updated server and provide personalized user experiences!
+Your existing Flutter code should now work properly with this updated server and provide secure, personalized user experiences! 🎉🔐
