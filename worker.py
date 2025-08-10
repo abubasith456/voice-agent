@@ -11,6 +11,7 @@ from livekit.agents import (
     cli,
     AgentSession,
     RoomInputOptions,
+    JobProcess,
 )
 from livekit.agents import mcp  # import as mcp for clarity
 from livekit.plugins import deepgram, openai, silero, noise_cancellation
@@ -21,6 +22,11 @@ from gocare.agents import MultiAgent
 
 
 load_dotenv()
+
+
+def prewarm(proc: JobProcess) -> None:
+    # Preload VAD once per worker process
+    proc.userdata["vad"] = silero.VAD.load()
 
 
 async def entrypoint(ctx: JobContext) -> None:
@@ -38,7 +44,7 @@ async def entrypoint(ctx: JobContext) -> None:
     mcp_url = os.getenv("MCP_SERVER_URL", "").strip()
 
     session = AgentSession(
-        vad=silero.VAD.load(),
+        vad=ctx.proc.userdata["vad"],
         stt=deepgram.STT(model="nova-3", language="en"),
         llm=llm,
         tts=deepgram.TTS(model="aura-asteria-en"),
@@ -46,6 +52,19 @@ async def entrypoint(ctx: JobContext) -> None:
         turn_detection=MultilingualModel(),
         mcp_servers=([mcp.MCPServerHTTP(url=mcp_url)] if mcp_url else []),
     )
+
+    @ctx.room.on("participant_connected")
+    async def on_participant_connected(participant):
+        attrs = getattr(participant, "attributes", {}) or {}
+        user_id = attrs.get("userId")
+        user_name = attrs.get("userName")
+        if user_id:
+            session.userdata.user_id = user_id
+        if user_name:
+            session.userdata.user_name = user_name
+        logger.info(
+            f"Participant joined: sid={getattr(participant, 'sid', 'unknown')} userId={user_id} userName={user_name} attrs={attrs}"
+        )
 
     await session.start(
         agent=MultiAgent(),
@@ -58,4 +77,4 @@ async def entrypoint(ctx: JobContext) -> None:
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
