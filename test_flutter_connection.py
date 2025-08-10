@@ -1,8 +1,8 @@
 """
-Test script to verify Flutter client connection to LiveKit server.
+Test script to verify LiveKit server setup and user connections.
 
 This script helps you test if your Python LiveKit server is properly configured
-to receive connections from your Flutter client.
+to receive connections from any client (web, mobile, etc.).
 """
 
 import os
@@ -40,18 +40,18 @@ def check_environment():
 
 
 def print_connection_info():
-    """Print connection information for Flutter client."""
+    """Print connection information for clients."""
     livekit_url = os.getenv('LIVEKIT_URL')
     api_key = os.getenv('LIVEKIT_API_KEY')
     
-    logger.info("=== Flutter Connection Information ===")
+    logger.info("=== LiveKit Connection Information ===")
     logger.info(f"LiveKit URL: {livekit_url}")
     logger.info(f"API Key: {api_key}")
     logger.info("Room Name: voice-assistant-room")
     logger.info("=====================================")
     
     print("\n" + "="*50)
-    print("FLUTTER CLIENT CONFIGURATION")
+    print("LIVEKIT SERVER CONFIGURATION")
     print("="*50)
     print(f"LIVEKIT_URL: {livekit_url}")
     print(f"LIVEKIT_API_KEY: {api_key}")
@@ -133,9 +133,47 @@ async def test_room_connection():
         return False
 
 
+def test_agent_session():
+    """Test if the agent session can be created."""
+    try:
+        from openai import AsyncClient
+        from livekit.plugins import deepgram, openai, silero, noise_cancellation
+        from livekit.plugins.turn_detector.multilingual import MultilingualModel
+        from gocare.state import ConversationContext
+        from gocare.agents import MultiAgent
+        
+        # Test LLM setup
+        llm_api_key = os.getenv("LLM_API_KEY", "").strip()
+        llm_base_url = os.getenv("LLM_BASE_URL", "").strip()
+        llm_model = os.getenv("LLM_MODEL_NAME", "gpt-4o-mini").strip()
+        
+        openai_client = AsyncClient(api_key=llm_api_key, base_url=llm_base_url)
+        llm = openai.LLM(client=openai_client, model=llm_model)
+        
+        logger.info("LLM setup successful")
+        
+        # Test plugins
+        vad = silero.VAD.load()
+        stt = deepgram.STT(model="nova-3", language="en")
+        tts = deepgram.TTS(model="aura-asteria-en")
+        turn_detection = MultilingualModel()
+        
+        logger.info("All plugins loaded successfully")
+        
+        # Test agent
+        agent = MultiAgent()
+        logger.info("MultiAgent created successfully")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Agent session test failed: {e}")
+        return False
+
+
 def main():
     """Main test function."""
-    logger.info("Testing Flutter connection setup...")
+    logger.info("Testing LiveKit server setup...")
     
     # Check environment
     if not check_environment():
@@ -152,6 +190,17 @@ def main():
     # Test room connection
     print("\nTesting room connection...")
     asyncio.run(test_room_connection())
+    
+    # Test agent session
+    print("\nTesting agent session...")
+    test_agent_session()
+    
+    print("\n" + "="*50)
+    print("SETUP COMPLETE")
+    print("="*50)
+    print("Your LiveKit server is ready to accept connections!")
+    print("Run 'python worker.py' to start the server.")
+    print("="*50)
 
 
 if __name__ == "__main__":

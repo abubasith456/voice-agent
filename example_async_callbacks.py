@@ -28,7 +28,7 @@ async def example_entrypoint(ctx: JobContext) -> None:
     
     # Alternative pattern using lambda (for simple cases)
     ctx.room.on("participant_disconnected", lambda participant: asyncio.create_task(
-        handle_participant_disconnected(participant)
+        handle_participant_disconnection(participant)
     ))
 
 
@@ -39,7 +39,7 @@ async def some_async_operation(participant):
     print(f"Finished processing {participant.identity}")
 
 
-async def handle_participant_disconnected(participant):
+async def handle_participant_disconnection(participant):
     """Example async operation for participant disconnection."""
     print(f"Participant {participant.identity} disconnected")
     # Perform cleanup or other async operations
@@ -80,3 +80,40 @@ async def third_async_operation(participant):
     """Third example async operation."""
     print(f"Third operation for {participant.identity}")
     await asyncio.sleep(0.3)
+
+
+# Example of handling data messages
+def handle_data_message(data_packet, participant):
+    async def process_data():
+        try:
+            print(f"Processing data from {participant.identity}: {data_packet.data}")
+            # Process the data asynchronously
+            await asyncio.sleep(0.1)
+            print(f"Data processed for {participant.identity}")
+        except Exception as e:
+            print(f"Error processing data for {participant.identity}: {e}")
+    
+    asyncio.create_task(process_data())
+
+
+# Example of sending data back to participant
+def handle_and_respond(participant):
+    async def respond_to_participant():
+        try:
+            # Send a response back to the participant
+            response_data = {
+                'type': 'response',
+                'message': 'Hello from the server!',
+                'timestamp': asyncio.get_event_loop().time()
+            }
+            
+            await participant.send_data(
+                data=response_data,
+                topic='system'
+            )
+            print(f"Sent response to {participant.identity}")
+            
+        except Exception as e:
+            print(f"Error sending response to {participant.identity}: {e}")
+    
+    asyncio.create_task(respond_to_participant())

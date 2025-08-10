@@ -27,17 +27,17 @@ load_dotenv()
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
     
-    # Set up room event handlers to properly handle Flutter client connections
+    # Set up room event handlers to properly handle user connections
     def handle_participant_connected(participant):
-        """Handle when a Flutter client connects to the room."""
+        """Handle when a user connects to the room."""
         asyncio.create_task(process_participant_connection(participant))
     
     def handle_participant_disconnected(participant):
-        """Handle when a Flutter client disconnects from the room."""
+        """Handle when a user disconnects from the room."""
         asyncio.create_task(process_participant_disconnection(participant))
     
     def handle_data_received(data_packet, participant):
-        """Handle data messages from Flutter client."""
+        """Handle data messages from users."""
         asyncio.create_task(process_data_message(data_packet, participant))
     
     # Register event handlers
@@ -80,12 +80,12 @@ async def entrypoint(ctx: JobContext) -> None:
 
 
 async def process_participant_connection(participant):
-    """Process when a Flutter client connects."""
+    """Process when a user connects."""
     try:
-        logger.info(f"Flutter client connected: {participant.identity}")
+        logger.info(f"User connected: {participant.identity}")
         logger.info(f"Participant SID: {participant.sid}")
         
-        # Log participant attributes (from Flutter client)
+        # Log participant metadata if available
         if participant.metadata:
             logger.info(f"Participant metadata: {participant.metadata}")
         
@@ -93,7 +93,11 @@ async def process_participant_connection(participant):
         audio_tracks = [track for track in participant.audio_tracks.values() if track.is_subscribed]
         logger.info(f"Participant has {len(audio_tracks)} audio tracks")
         
-        # Send welcome message to the client
+        # Check if participant has video tracks
+        video_tracks = [track for track in participant.video_tracks.values() if track.is_subscribed]
+        logger.info(f"Participant has {len(video_tracks)} video tracks")
+        
+        # Send welcome message to the user
         await send_welcome_message(participant)
         
     except Exception as e:
@@ -101,16 +105,16 @@ async def process_participant_connection(participant):
 
 
 async def process_participant_disconnection(participant):
-    """Process when a Flutter client disconnects."""
+    """Process when a user disconnects."""
     try:
-        logger.info(f"Flutter client disconnected: {participant.identity}")
+        logger.info(f"User disconnected: {participant.identity}")
         # Clean up any resources associated with this participant
     except Exception as e:
         logger.error(f"Error processing participant disconnection: {e}")
 
 
 async def process_data_message(data_packet, participant):
-    """Process data messages from Flutter client."""
+    """Process data messages from users."""
     try:
         logger.info(f"Received data from {participant.identity}: {data_packet.data}")
         
@@ -121,13 +125,15 @@ async def process_data_message(data_packet, participant):
                 await handle_text_message(data_packet.data.get('text', ''), participant)
             elif message_type == 'command':
                 await handle_command_message(data_packet.data.get('command', ''), participant)
+            elif message_type == 'chat':
+                await handle_chat_message(data_packet.data.get('message', ''), participant)
         
     except Exception as e:
         logger.error(f"Error processing data message: {e}")
 
 
 async def send_welcome_message(participant):
-    """Send a welcome message to the connected Flutter client."""
+    """Send a welcome message to the connected user."""
     try:
         welcome_data = {
             'type': 'welcome',
@@ -147,7 +153,7 @@ async def send_welcome_message(participant):
 
 
 async def handle_text_message(text: str, participant):
-    """Handle text messages from Flutter client."""
+    """Handle text messages from users."""
     try:
         logger.info(f"Processing text message from {participant.identity}: {text}")
         
@@ -168,18 +174,42 @@ async def handle_text_message(text: str, participant):
         logger.error(f"Error handling text message: {e}")
 
 
+async def handle_chat_message(message: str, participant):
+    """Handle chat messages from users."""
+    try:
+        logger.info(f"Processing chat message from {participant.identity}: {message}")
+        
+        # Process the message with your agent system
+        response_data = {
+            'type': 'chat_response',
+            'message': f'Received your message: {message}',
+            'timestamp': asyncio.get_event_loop().time()
+        }
+        
+        await participant.send_data(
+            data=response_data,
+            topic='chat'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error handling chat message: {e}")
+
+
 async def handle_command_message(command: str, participant):
-    """Handle command messages from Flutter client."""
+    """Handle command messages from users."""
     try:
         logger.info(f"Processing command from {participant.identity}: {command}")
         
         # Handle different commands
         if command == 'start_conversation':
             # Start the voice conversation
-            pass
+            logger.info(f"Starting voice conversation for {participant.identity}")
         elif command == 'stop_conversation':
             # Stop the voice conversation
-            pass
+            logger.info(f"Stopping voice conversation for {participant.identity}")
+        elif command == 'get_status':
+            # Get current status
+            logger.info(f"Getting status for {participant.identity}")
         
         # Send command acknowledgment
         response_data = {
