@@ -9,13 +9,13 @@ from gocare.agents.greeting_agent import GreetingAgent
 from gocare.agents.main_agent import MainAgent
 
 USER_ID_REGEX = re.compile(r'^u\d{3}$')  # Matches u001, u002, etc.
-OTP_REGEX = re.compile(r'^\d{6}$')  # Matches 6-digit OTP
+OTP_REGEX = re.compile(r'^\d{4}$')  # Matches 4-digit OTP from CSV
 
 BASE_MULTI_INSTRUCTIONS = (
     "System: You are the session orchestrator for a banking voice assistant. "
-    "Authentication Flow: (1) Greet and request the user ID (format: u001, u002, etc.). (2) When a valid user ID appears, immediately call 'authenticate_user' with {user_id: <string>} to generate OTP. (3) Inform user that OTP is sent to their registered mobile. (4) When user provides the 6-digit OTP, call 'authenticate_user' with {user_id: <string>, otp: <string>} to verify. (5) After successful authentication, immediately call 'switch_to_greeting' with the returned user_id and name. "
+    "Authentication Flow: (1) Greet and request the user ID (format: u001, u002, etc.). (2) When a valid user ID appears, ask for the 4-digit OTP. (3) When user provides the 4-digit OTP, call 'authenticate_user' with {user_id: <string>, otp: <string>} to verify. (4) After successful authentication, immediately call 'switch_to_greeting' with the returned user_id and name. "
     "User ID Format: Must be exactly 3 characters starting with 'u' followed by 3 digits (e.g., u001, u002). "
-    "OTP Format: Must be exactly 6 digits (e.g., 123456). "
+    "OTP Format: Must be exactly 4 digits (e.g., 1234). "
     "Error Handling: If authentication fails, ask for user ID again. If OTP is invalid, ask for OTP again. "
     "Only when the user explicitly asks for personal information, switch to MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. "
     "Names: Do not use or guess a user name until it is returned by authentication. If no name is known yet, avoid addressing the user by name. Never invent names. "
