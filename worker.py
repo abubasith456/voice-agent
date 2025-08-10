@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import asyncio
+import json
 from dotenv import load_dotenv
 from loguru import logger
 from openai import AsyncClient
@@ -30,7 +31,7 @@ async def entrypoint(ctx: JobContext) -> None:
     # Set up room event handlers to properly handle user connections
     def handle_participant_connected(participant):
         """Handle when a user connects to the room."""
-        asyncio.create_task(process_participant_connection(participant))
+        asyncio.create_task(process_participant_connection(participant, ctx))
     
     def handle_participant_disconnected(participant):
         """Handle when a user disconnects from the room."""
@@ -79,15 +80,36 @@ async def entrypoint(ctx: JobContext) -> None:
     )
 
 
-async def process_participant_connection(participant):
+async def process_participant_connection(participant, ctx: JobContext):
     """Process when a user connects."""
     try:
         logger.info(f"User connected: {participant.identity}")
         logger.info(f"Participant SID: {participant.sid}")
         
-        # Log participant metadata if available
+        # Extract user metadata from Flutter client
+        user_id = None
+        user_name = None
+        
         if participant.metadata:
             logger.info(f"Participant metadata: {participant.metadata}")
+            try:
+                # Parse the JSON metadata from Flutter
+                metadata = json.loads(participant.metadata)
+                user_id = metadata.get('userId')
+                user_name = metadata.get('userName')
+                
+                logger.info(f"Extracted user info - ID: {user_id}, Name: {user_name}")
+                
+                # Set user information in the conversation context
+                if hasattr(ctx, 'session') and ctx.session and ctx.session.userdata:
+                    ctx.session.userdata.user_id = user_id
+                    ctx.session.userdata.user_name = user_name
+                    logger.info(f"Set user data in conversation context: {user_name} ({user_id})")
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse participant metadata: {e}")
+            except Exception as e:
+                logger.error(f"Error extracting user metadata: {e}")
         
         # Check if participant has audio tracks
         audio_tracks = [track for track in participant.audio_tracks.values() if track.is_subscribed]
@@ -97,8 +119,8 @@ async def process_participant_connection(participant):
         video_tracks = [track for track in participant.video_tracks.values() if track.is_subscribed]
         logger.info(f"Participant has {len(video_tracks)} video tracks")
         
-        # Send welcome message to the user
-        await send_welcome_message(participant)
+        # Send personalized welcome message to the user
+        await send_personalized_welcome_message(participant, user_name)
         
     except Exception as e:
         logger.error(f"Error processing participant connection: {e}")
@@ -132,12 +154,18 @@ async def process_data_message(data_packet, participant):
         logger.error(f"Error processing data message: {e}")
 
 
-async def send_welcome_message(participant):
-    """Send a welcome message to the connected user."""
+async def send_personalized_welcome_message(participant, user_name: str = None):
+    """Send a personalized welcome message to the connected user."""
     try:
+        if user_name:
+            welcome_message = f"Welcome {user_name}! I'm your voice assistant. How can I help you today?"
+        else:
+            welcome_message = "Welcome! I'm your voice assistant. How can I help you today?"
+        
         welcome_data = {
             'type': 'welcome',
-            'message': 'Welcome to the voice assistant! I\'m ready to help you.',
+            'message': welcome_message,
+            'user_name': user_name,
             'timestamp': asyncio.get_event_loop().time()
         }
         
@@ -146,10 +174,10 @@ async def send_welcome_message(participant):
             data=welcome_data,
             topic='system'
         )
-        logger.info(f"Sent welcome message to {participant.identity}")
+        logger.info(f"Sent personalized welcome message to {participant.identity}: {user_name or 'Unknown'}")
         
     except Exception as e:
-        logger.error(f"Error sending welcome message: {e}")
+        logger.error(f"Error sending personalized welcome message: {e}")
 
 
 async def handle_text_message(text: str, participant):

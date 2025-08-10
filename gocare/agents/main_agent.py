@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from loguru import logger
 from livekit.agents import Agent
 
 from gocare.state import ConversationContext, SessionState
@@ -24,8 +25,13 @@ class MainAgent(Agent):
     async def on_enter(self) -> None:
         self.session.userdata.state = SessionState.MAIN
         name = (self.session.userdata.user_name or "").strip()
-        # Keep the first main prompt friendly but not repetitive
-        prompt = (
-            f"Welcome back, {name}. What do you need today?" if name else "What do you need today?"
-        )
+        
+        if name:
+            # Keep the first main prompt friendly but not repetitive
+            prompt = f"Welcome back, {name}. What do you need today?"
+            logger.info(f"MainAgent greeting user by name: {name}")
+        else:
+            prompt = "What do you need today?"
+            logger.info("MainAgent using generic greeting (no user name)")
+        
         await self.session.generate_reply(instructions=prompt)

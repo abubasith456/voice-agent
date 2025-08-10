@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from loguru import logger
 from livekit.agents import Agent, RunContext, function_tool
 
 from gocare.state import ConversationContext, SessionState
@@ -31,9 +32,22 @@ class MultiAgent(Agent):
 
     async def on_enter(self) -> None:
         self.session.userdata.state = SessionState.GREETING
+        
+        # Check if user name is already available from Flutter metadata
+        user_name = (self.session.userdata.user_name or "").strip()
+        
+        if user_name:
+            # User name is already available, provide a personalized greeting
+            greeting_message = f"Welcome {user_name}! Please say your registered mobile number."
+            logger.info(f"Using personalized greeting for user: {user_name}")
+        else:
+            # No user name available, use generic greeting
+            greeting_message = "Welcome. Please say your registered mobile number."
+            logger.info("Using generic greeting (no user name available)")
+        
         await self.session.generate_reply(
             instructions=(
-                "Your next message must be exactly: 'Welcome. Please say your registered mobile number.' Do not add or prepend any other words."
+                f"Your next message must be exactly: '{greeting_message}' Do not add or prepend any other words."
             )
         )
 
@@ -46,19 +60,31 @@ class MultiAgent(Agent):
         # Guard against unintended re-greeting when already authenticated
         if ud.is_authenticated and ud.user_id:
             return self, ""
+        
+        # Use the provided name or keep existing name from Flutter metadata
+        final_name = (name or "").strip()
+        if not final_name and ud.user_name:
+            final_name = ud.user_name
+            logger.info(f"Using existing user name from Flutter metadata: {final_name}")
+        
         ud.user_id = user_id
-        ud.user_name = (name or "").strip()
+        ud.user_name = final_name
         ud.is_authenticated = True
         ud.state = SessionState.MAIN
+        
         extra = (
             f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
             "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step."
         )
-        single_line = (
-            f"Hello {ud.user_name}, how can I assist you today?"
-            if ud.user_name
-            else "Hello, how can I assist you today?"
-        )
+        
+        # Create personalized greeting
+        if ud.user_name:
+            single_line = f"Hello {ud.user_name}, how can I assist you today?"
+            logger.info(f"Created personalized greeting for: {ud.user_name}")
+        else:
+            single_line = "Hello, how can I assist you today?"
+            logger.info("Created generic greeting (no user name)")
+        
         return GreetingAgent(extra_instructions=extra), single_line
 
     @function_tool
