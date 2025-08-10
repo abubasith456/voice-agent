@@ -8,8 +8,8 @@ from gocare.state import ConversationContext, SessionState
 from gocare.agents.greeting_agent import GreetingAgent
 from gocare.agents.main_agent import MainAgent
 
-USER_ID_REGEX = re.compile(r'^u\d{3}$')  # Matches u001, u002, etc.
-OTP_REGEX = re.compile(r'^\d{4}$')  # Matches 4-digit OTP from CSV
+USER_ID_REGEX = re.compile(r"^u\d{3}$")  # Matches u001, u002, etc.
+OTP_REGEX = re.compile(r"^\d{4}$")  # Matches 4-digit OTP from CSV
 
 BASE_MULTI_INSTRUCTIONS = (
     "System: You are the session orchestrator for a banking voice assistant. "
@@ -30,7 +30,9 @@ BASE_MULTI_INSTRUCTIONS = (
 
 
 class MultiAgent(Agent):
-    def __init__(self, user_name: str | None = None, user_id: str | None = None) -> None:
+    def __init__(
+        self, user_name: str | None = None, user_id: str | None = None
+    ) -> None:
         self.user_name = user_name  # need to user this for the welcom the User please
         self.user_id = user_id
         super().__init__(instructions=BASE_MULTI_INSTRUCTIONS)
@@ -38,14 +40,16 @@ class MultiAgent(Agent):
     async def on_enter(self) -> None:
         self.session.userdata.state = SessionState.GREETING
 
-        # Check if user name is already available from Flutter metadata
-        user_name = (self.session.userdata.user_name or "").strip()
-        user_id = (self.session.userdata.user_id or "").strip()
+        print(
+            f"MultiAgent on_enter: user_name='{self.user_name}', user_id='{self.user_id}'"
+        )
 
-        if user_name and user_id:
+        if self.user_name and self.user_id:
             # User name and ID are available from Flutter metadata
-            greeting_message = f"Welcome {user_name}! Please provide your 4-digit OTP to continue."
-            logger.info(f"Using personalized greeting for user: {user_name} with ID: {user_id}")
+            greeting_message = f"Welcome {self.user_name}! Please provide your 4-digit OTP to continue."
+            logger.info(
+                f"Using personalized greeting for user: {self.user_name} with ID: {self.user_id}"
+            )
         else:
             # No user name available, use generic greeting
             greeting_message = "Welcome! Please provide your 4-digit OTP to continue."

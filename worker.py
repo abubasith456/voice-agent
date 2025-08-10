@@ -48,6 +48,8 @@ async def entrypoint(ctx: JobContext) -> None:
 
     logger.info(f"Room '{ctx.room.name}' is ready to accept connections")
     logger.info(f"Room SID: {ctx.room.sid}")
+    print("User name:", user_name)
+    print("User ID:", user_id)
 
     # Build LLM using AsyncClient (e.g., NVIDIA via OpenAI-compatible endpoint)
     llm_api_key = os.getenv("LLM_API_KEY", "").strip()
@@ -71,7 +73,7 @@ async def entrypoint(ctx: JobContext) -> None:
     )
 
     await session.start(
-        agent=MultiAgent(),
+        agent=MultiAgent(user_name=user_name, user_id=user_id),
         room=ctx.room,
         room_input_options=RoomInputOptions(
             text_enabled=True,
