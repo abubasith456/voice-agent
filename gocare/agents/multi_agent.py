@@ -25,7 +25,7 @@ BASE_MULTI_INSTRUCTIONS = (
     "Style: Natural, conversational, and concise. Use contractions. Output exactly one sentence per turn unless listing short factual items; do not repeat greetings. "
     "Tooling Disclosure: Do not mention tool names, function calls, schemas, or internal processes to the user. Do not output code/markers. "
     "Forbidden characters/markers: never output [, ], <, >, {, }, backticks, or text that looks like a function call (e.g., name(args)). If your draft contains any of these, rewrite it as plain natural language. "
-    "Voice: Read OTPs as individual digits."
+    "Voice: When asking for OTP, say 'Please provide your four-digit OTP' or 'Please enter your four-digit OTP'. Do not say '4-digit OTP' as it sounds robotic. Read OTPs as individual digits when confirming."
 )
 
 
@@ -40,19 +40,25 @@ class MultiAgent(Agent):
     async def on_enter(self) -> None:
         self.session.userdata.state = SessionState.GREETING
 
+        # Set user data in conversation context immediately
+        if self.user_name:
+            self.session.userdata.user_name = self.user_name
+        if self.user_id:
+            self.session.userdata.user_id = self.user_id
+
         print(
             f"MultiAgent on_enter: user_name='{self.user_name}', user_id='{self.user_id}'"
         )
 
         if self.user_name and self.user_id:
             # User name and ID are available from Flutter metadata
-            greeting_message = f"Welcome {self.user_name}! Please provide your 4-digit OTP to continue."
+            greeting_message = f"Welcome {self.user_name}! Please provide your four-digit OTP to continue."
             logger.info(
                 f"Using personalized greeting for user: {self.user_name} with ID: {self.user_id}"
             )
         else:
             # No user name available, use generic greeting
-            greeting_message = "Welcome! Please provide your 4-digit OTP to continue."
+            greeting_message = "Welcome! Please provide your four-digit OTP to continue."
             logger.info("Using generic greeting (no user name available)")
 
         await self.session.generate_reply(
@@ -84,7 +90,8 @@ class MultiAgent(Agent):
 
         extra = (
             f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
-            "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step."
+            "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step. "
+            "IMPORTANT: Never mention tool names, function calls, or internal processes to the user. Keep responses natural and conversational."
         )
 
         # Create personalized greeting with data offer
@@ -103,6 +110,7 @@ class MultiAgent(Agent):
         ud = self.session.userdata
         extra = (
             f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
-            "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step."
+            "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step. "
+            "IMPORTANT: Never mention tool names, function calls, or internal processes to the user. Keep responses natural and conversational."
         )
         return MainAgent(extra_instructions=extra), ""
