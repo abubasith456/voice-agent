@@ -28,10 +28,10 @@ class MainAgent(Agent):
         
         if name:
             # Keep the first main prompt friendly but not repetitive
-            prompt = f"Welcome back, {name}. What do you need today?"
+            prompt = f"Welcome back, {name}. What would you like to know about your data?"
             logger.info(f"MainAgent greeting user by name: {name}")
         else:
-            prompt = "What do you need today?"
+            prompt = "What would you like to know about your data?"
             logger.info("MainAgent using generic greeting (no user name)")
         
         await self.session.generate_reply(instructions=prompt)

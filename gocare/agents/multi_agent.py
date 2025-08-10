@@ -13,19 +13,19 @@ OTP_REGEX = re.compile(r'^\d{4}$')  # Matches 4-digit OTP from CSV
 
 BASE_MULTI_INSTRUCTIONS = (
     "System: You are the session orchestrator for a banking voice assistant. "
-    "Authentication Flow: (1) Greet and request the user ID (format: u001, u002, etc.). (2) When a valid user ID appears, ask for the 4-digit OTP. (3) When user provides the 4-digit OTP, call 'authenticate_user' with {user_id: <string>, otp: <string>} to verify. (4) After successful authentication, immediately call 'switch_to_greeting' with the returned user_id and name. "
-    "User ID Format: Must be exactly 3 characters starting with 'u' followed by 3 digits (e.g., u001, u002). "
+    "Authentication Flow: (1) Welcome the user by name (from Flutter metadata). (2) Ask for the 4-digit OTP directly. (3) When user provides the 4-digit OTP, call 'authenticate_user' with {user_id: <string>, otp: <string>} to verify. (4) After successful authentication, immediately call 'switch_to_greeting' with the returned user_id and name. "
+    "User ID: Use the user_id from Flutter metadata (already available). "
     "OTP Format: Must be exactly 4 digits (e.g., 1234). "
-    "Error Handling: If authentication fails, ask for user ID again. If OTP is invalid, ask for OTP again. "
+    "Error Handling: If OTP is invalid, ask for OTP again. "
     "Only when the user explicitly asks for personal information, switch to MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. "
-    "Names: Do not use or guess a user name until it is returned by authentication. If no name is known yet, avoid addressing the user by name. Never invent names. "
+    "Names: Use the user name from Flutter metadata for personalized greetings. "
     "Privacy: Do not state mapping like 'The user with ID X is Y'. Just continue naturally using the name after authentication. "
     "Authentication state: After greeting handoff, the user is authenticated for the session. If asked, reply briefly ('You're verified.') without extra details. Never say 'not authenticated', 'logged in as', or 'a different user'. "
     "Domain scope: You ONLY help with banking/account tasks: authentication, profile info, balances, statements, transactions, and account updates. If off-topic, politely refuse and offer a relevant next step. "
     "Style: Natural, conversational, and concise. Use contractions. Output exactly one sentence per turn unless listing short factual items; do not repeat greetings. "
     "Tooling Disclosure: Do not mention tool names, function calls, schemas, or internal processes to the user. Do not output code/markers. "
     "Forbidden characters/markers: never output [, ], <, >, {, }, backticks, or text that looks like a function call (e.g., name(args)). If your draft contains any of these, rewrite it as plain natural language. "
-    "Voice: Read user IDs as individual letters and numbers (e.g., 'u zero zero one'). Read OTPs as individual digits."
+    "Voice: Read OTPs as individual digits."
 )
 
 
@@ -40,14 +40,15 @@ class MultiAgent(Agent):
 
         # Check if user name is already available from Flutter metadata
         user_name = (self.session.userdata.user_name or "").strip()
+        user_id = (self.session.userdata.user_id or "").strip()
 
-        if user_name:
-            # User name is already available, provide a personalized greeting
-            greeting_message = f"Welcome {user_name}! Please provide your user ID to continue."
-            logger.info(f"Using personalized greeting for user: {user_name}")
+        if user_name and user_id:
+            # User name and ID are available from Flutter metadata
+            greeting_message = f"Welcome {user_name}! Please provide your 4-digit OTP to continue."
+            logger.info(f"Using personalized greeting for user: {user_name} with ID: {user_id}")
         else:
             # No user name available, use generic greeting
-            greeting_message = "Welcome! Please provide your user ID to continue."
+            greeting_message = "Welcome! Please provide your 4-digit OTP to continue."
             logger.info("Using generic greeting (no user name available)")
 
         await self.session.generate_reply(
@@ -82,12 +83,12 @@ class MultiAgent(Agent):
             "Stay strictly on account/transactions topics. If off-topic, politely refuse and offer a relevant next step."
         )
 
-        # Create personalized greeting
+        # Create personalized greeting with data offer
         if ud.user_name:
-            single_line = f"Hello {ud.user_name}, how can I assist you today?"
+            single_line = f"How can I help you {ud.user_name} with your data?"
             logger.info(f"Created personalized greeting for: {ud.user_name}")
         else:
-            single_line = "Hello, how can I assist you today?"
+            single_line = "How can I help you with your data?"
             logger.info("Created generic greeting (no user name)")
 
         return GreetingAgent(extra_instructions=extra), single_line
