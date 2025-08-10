@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import asyncio
 from dotenv import load_dotenv
 from loguru import logger
 from openai import AsyncClient
@@ -25,6 +26,18 @@ load_dotenv()
 
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
+
+    # Example of how to properly handle async callbacks with LiveKit's .on() method:
+    # Instead of:
+    # @ctx.room.on("participant_connected")
+    # async def handle_participant_connected(participant):
+    #     await some_async_operation()
+    #
+    # Use this pattern:
+    # def handle_participant_connected(participant):
+    #     asyncio.create_task(some_async_operation(participant))
+    #
+    # ctx.room.on("participant_connected", handle_participant_connected)
 
     # Build LLM using AsyncClient (e.g., NVIDIA via OpenAI-compatible endpoint)
     llm_api_key = os.getenv("LLM_API_KEY", "").strip()
