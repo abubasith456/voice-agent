@@ -1,9 +1,14 @@
 #!/bin/bash
-
 set -e
 
-# Activate the virtual environment
-source /app/.venv/bin/activate
+# Change to the correct working directory
+cd /home/user/app
 
-# Start the uvicorn server
-uv run worker.py download-files && uv run worker.py start
+# Activate the virtual environment (correct path for HF user setup)
+source .venv/bin/activate
+
+# Set Python path
+export PYTHONPATH=/home/user/app:$PYTHONPATH
+
+# Run your worker commands (use python directly, not uv run)
+python worker.py download-files && python worker.py start
