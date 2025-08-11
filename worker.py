@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import asyncio
+import json
 from dotenv import load_dotenv
 from loguru import logger
 from openai import AsyncClient
@@ -26,10 +28,35 @@ load_dotenv()
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
 
+    participant = await ctx.wait_for_participant()
+    logger.info(f"Participant metadata: {participant.metadata}")
+
+    user_name = None
+    user_id = None
+
+    if participant.metadata:
+        try:
+            metadata = json.loads(participant.metadata)
+            logger.info(f"Participant metadata loaded: {metadata}")
+
+            user_name = metadata.get("userName", "").strip()
+            user_id = metadata.get("userId", "").strip()
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse participant metadata: {e}")
+            metadata = {}
+
+    logger.info(f"Room '{ctx.room.name}' is ready to accept connections")
+    logger.info(f"Room SID: {ctx.room.sid}")
+    print("User name:", user_name)
+    print("User ID:", user_id)
+
     # Build LLM using AsyncClient (e.g., NVIDIA via OpenAI-compatible endpoint)
     llm_api_key = os.getenv("LLM_API_KEY", "").strip()
     llm_base_url = os.getenv("LLM_BASE_URL", "").strip()
     llm_model = os.getenv("LLM_MODEL_NAME", "gpt-4o-mini").strip()
+
+    print("LLM Model Name:", llm_model)
 
     openai_client = AsyncClient(api_key=llm_api_key, base_url=llm_base_url)
     llm = openai.LLM(client=openai_client, model=llm_model)
@@ -48,7 +75,7 @@ async def entrypoint(ctx: JobContext) -> None:
     )
 
     await session.start(
-        agent=MultiAgent(),
+        agent=MultiAgent(user_name=user_name, user_id=user_id),
         room=ctx.room,
         room_input_options=RoomInputOptions(
             text_enabled=True,
