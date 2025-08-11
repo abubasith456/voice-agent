@@ -56,6 +56,8 @@ async def entrypoint(ctx: JobContext) -> None:
     llm_base_url = os.getenv("LLM_BASE_URL", "").strip()
     llm_model = os.getenv("LLM_MODEL_NAME", "gpt-4o-mini").strip()
 
+    print("LLM Model Name:", llm_model)
+
     openai_client = AsyncClient(api_key=llm_api_key, base_url=llm_base_url)
     llm = openai.LLM(client=openai_client, model=llm_model)
 

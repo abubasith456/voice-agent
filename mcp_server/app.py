@@ -60,17 +60,17 @@ async def authenticate_user(user_id: str, otp: str):
     user = users.get(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User ID not found")
-    
+
     # Check if OTP matches the one in CSV
     if user["otp"] != otp:
         raise HTTPException(status_code=401, detail="Invalid OTP")
-    
+
     # Authentication successful
     return {
         "status": "success",
         "user_id": user_id,
         "name": user["name"],
-        "mobile": user["mobile"]
+        "mobile": user["mobile"],
     }
 
 

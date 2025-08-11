@@ -14,7 +14,7 @@ OTP_REGEX = re.compile(r"^\d{4}$")  # Matches 4-digit OTP from CSV
 BASE_MULTI_INSTRUCTIONS = (
     "System: You are the session orchestrator for a banking voice assistant. "
     "Authentication Flow: (1) Welcome the user by name. (2) Ask for the 4-digit OTP directly. (3) When user provides the 4-digit OTP, call 'authenticate_user' with {user_id: <string>, otp: <string>} to verify. (4) After successful authentication, immediately call 'switch_to_greeting' with the returned user_id and name. "
-    "User ID: Use the user_id that is already available in the session context. "
+    "User ID: Use the user_id that is already available in the session context. Note: user_id is a string like 'u001', 'u002', etc. "
     "OTP Format: Must be exactly 4 digits (e.g., 1234). "
     "Error Handling: If OTP is invalid, ask for OTP again. "
     "Only when the user explicitly asks for personal information, switch to MainAgent by calling 'switch_to_main' (no arguments). Then retrieve details using 'get_user_info' with {user_id: <string>} — the value must be the exact user_id returned by authentication. "
@@ -35,7 +35,12 @@ class MultiAgent(Agent):
     ) -> None:
         self.user_name = user_name  # need to user this for the welcom the User please
         self.user_id = user_id
-        super().__init__(instructions=BASE_MULTI_INSTRUCTIONS)
+        runtime_context = (
+            f"CURRENT SESSION: user_id='{user_id}', user_name='{user_name}'. "
+            "Always use the exact user_id of string for all tool calls; never substitute the name."
+        )
+        final_instructions = BASE_MULTI_INSTRUCTIONS + runtime_context
+        super().__init__(instructions=final_instructions)
 
     async def on_enter(self) -> None:
         self.session.userdata.state = SessionState.GREETING
@@ -49,7 +54,6 @@ class MultiAgent(Agent):
         print(
             f"MultiAgent on_enter: user_name='{self.user_name}', user_id='{self.user_id}'"
         )
-
         if self.user_name and self.user_id:
             # User name and ID are available
             greeting_message = f"Welcome {self.user_name}! Please provide your four-digit OTP to continue."
@@ -58,13 +62,13 @@ class MultiAgent(Agent):
             )
         else:
             # No user name available, use generic greeting
-            greeting_message = "Welcome! Please provide your four-digit OTP to continue."
+            greeting_message = (
+                "Welcome! Please provide your four-digit OTP to continue."
+            )
             logger.info("Using generic greeting (no user name available)")
 
         await self.session.generate_reply(
-            instructions=(
-                f"Your next message must be exactly: '{greeting_message}' Do not add or prepend any other words."
-            )
+            instructions=(f"Your next message must be exactly: '{greeting_message}'")
         )
 
     @function_tool
@@ -76,18 +80,6 @@ class MultiAgent(Agent):
         # Guard against unintended re-greeting when already authenticated
         if ud.is_authenticated and ud.user_id:
             return self, ""
-
-        # Use the provided name or keep existing name from session context
-        final_name = (name or "").strip()
-        if not final_name and ud.user_name:
-            final_name = ud.user_name
-            logger.info(f"Using existing user name from session context: {final_name}")
-
-        ud.user_id = user_id
-        ud.user_name = final_name
-        ud.is_authenticated = True
-        ud.state = SessionState.MAIN
-
         extra = (
             f"Context: authenticated user_id='{ud.user_id}'. user_name='{ud.user_name}'. "
             f"When calling MCP tools like 'get_user_info', 'get_user_bill', 'get_user_contact', or 'get_user_last_login', always use user_id='{ud.user_id}'. "
