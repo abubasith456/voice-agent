@@ -68,14 +68,14 @@ async def entrypoint(ctx: JobContext) -> None:
         vad=silero.VAD.load(),
         stt=deepgram.STT(model="nova-3", language="en"),
         llm=llm,
-        tts=deepgram.TTS(model="aura-asteria-en"),
+        tts=deepgram.TTS(model="aura-2-andromeda-en"),
         userdata=ConversationContext(),
         turn_detection=MultilingualModel(),
         mcp_servers=([mcp.MCPServerHTTP(url=mcp_url)] if mcp_url else []),
     )
 
     await session.start(
-        agent=MultiAgent(user_name=user_name, user_id=user_id),
+        agent=MultiAgent(job_context=ctx, user_name=user_name, user_id=user_id),
         room=ctx.room,
         room_input_options=RoomInputOptions(
             text_enabled=True,

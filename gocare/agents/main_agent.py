@@ -95,4 +95,4 @@ class MainAgent(Agent):
         await self.session.generate_reply(
             instructions=f"Alright {userdata.user_name}, let me get you over to one of our specialists."
         )
-        return HelplineAgent(extra_instructions=helpline_context), ""
+        return HelplineAgent(job_context= self.job_context, extra_instructions=helpline_context), ""

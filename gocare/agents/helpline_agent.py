@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from loguru import logger
-from livekit.agents import Agent, RunContext, function_tool
+from livekit.agents import Agent, RunContext, function_tool, JobContext
 
 from gocare.state import SessionState
 
@@ -30,7 +30,8 @@ HELPLINE_INSTRUCTIONS = (
 
 
 class HelplineAgent(Agent):
-    def __init__(self, extra_instructions: str = "") -> None:
+    def __init__(self, job_context: JobContext, extra_instructions: str = "") -> None:
+        self.job_context = job_context
         logger.info("DEBUG - HelplineAgent.__init__ called")
         logger.info(f"DEBUG - extra_instructions: '{extra_instructions}'")
 
@@ -83,9 +84,10 @@ class HelplineAgent(Agent):
                 logger.error(f"ERROR - Even fallback failed: {fallback_error}")
 
     @function_tool
-    async def end_session(self, context: RunContext) -> str:
+    async def end_session(self, context: RunContext) -> tuple[Agent, str]:
         """End the customer session"""
         logger.info("DEBUG - end_session() called")
+        from gocare.agents.multi_agent import MultiAgent
 
         try:
             # Reset userdata properly
@@ -105,8 +107,22 @@ class HelplineAgent(Agent):
             await self.session.generate_reply(instructions=farewell)
             logger.info("DEBUG - Farewell message sent successfully")
 
-            return "session_ended"
+            return (
+                MultiAgent(
+                    job_context=self.job_context,
+                    user_name=self.session.userdata.user_name,
+                    user_id=self.session.userdata.user_id,
+                ),
+                "Session ended successfully",
+            )
 
         except Exception as e:
             logger.error(f"ERROR - Exception in end_session(): {e}")
-            return "session_ended_with_error"
+            return (
+                MultiAgent(
+                    job_context=self.job_context,
+                    user_name=self.session.userdata.user_name,
+                    user_id=self.session.userdata.user_id,
+                ),
+                "Sorry, I encountered an error while trying to end the session. Please try again later.",
+            )
