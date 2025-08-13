@@ -1,3 +1,5 @@
+fastapi[standard]==0.115.9
+uvicorn>=0.35.0
 livekit-agents[deepgram,openai,silero,turn-detector,mcp]~=1.0
 livekit-plugins-noise-cancellation~=0.2
 httpx>=0.27.0
