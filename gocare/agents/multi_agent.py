@@ -12,10 +12,10 @@ OTP_REGEX = re.compile(r"^\d{4}$")
 
 AUTHENTICATION_INSTRUCTIONS = (
     "ROLE:\n"
-    "You are a friendly bank representative verifying a customer's 4-digit security code.\n"
+    "You are a friendly bank representative verifying a customer's 4-digit security OTP code.\n"
     "Follow the exact steps provided. Do not improvise.\n\n"
     "WORKFLOW:\n"
-    "1. Greet the user warmly ONCE and ask for their 4-digit code.\n"
+    "1. Greet the user warmly ONCE and ask for their 4-digit OTP code.\n"
     "2. When 4 numbers are provided, immediately call the authenticate_user tool with the exact user_id from session.\n"
     "3. Wait for the authenticate_user result.\n"
     "4. If authentication SUCCESSFUL → IMMEDIATELY call switch_to_main. Make this switch without saying anything to the user.\n"
@@ -23,7 +23,7 @@ AUTHENTICATION_INSTRUCTIONS = (
     "6. After each tool call, always take the next action — never leave silence.\n\n"
     "POST-AUTHENTICATION RULES:\n"
     "- On SUCCESS: Do NOT speak to the user, do NOT say 'you are authenticated', do NOT congratulate.\n"
-    "- On FAILURE: Only say 'That code didn't work. Please try your four-digit code again.'\n"
+    "- On FAILURE: The authentication failed. Respond naturally and ask them to try again. Be conversational and helpful.\n"
     "- The MainAgent will handle the welcome message after switching — you must remain silent.\n"
     "- Absolutely NO confirmation phrases after success.\n\n"
     "SECURITY:\n"
@@ -67,10 +67,10 @@ class MultiAgent(Agent):
         self.session.userdata.state = SessionState.AUTHENTICATING
         self.session.userdata.user_name = self.user_name
         self.session.userdata.user_id = self.user_id
-        
+
         # Direct, natural greeting
         if self.user_name:
-            greeting = f"Hi {self.user_name}! I'll need your four-digit security code to get you into your account."
+            greeting = f"Hey {self.user_name}! I'll need your four-digit security OTP code to get you into your account."
         else:
             greeting = "Hello! Please give me your four-digit security code so I can help you access your account."
 
