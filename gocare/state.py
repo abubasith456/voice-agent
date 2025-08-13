@@ -10,6 +10,7 @@ class SessionState(Enum):
     AUTHENTICATING = auto()
     MAIN = auto()
     UNAUTHORIZED = auto()
+    HELPLINE = auto()
 
 
 @dataclass
