@@ -68,7 +68,7 @@ async def entrypoint(ctx: JobContext) -> None:
         vad=silero.VAD.load(),
         stt=deepgram.STT(model="nova-3", language="en"),
         llm=llm,
-        tts=deepgram.TTS(model="aura-2-hera-en"),
+        tts=deepgram.TTS(model="aura-asteria-en"),
         userdata=ConversationContext(),
         turn_detection=MultilingualModel(),
         mcp_servers=([mcp.MCPServerHTTP(url=mcp_url)] if mcp_url else []),
