@@ -4,8 +4,8 @@ import re
 from loguru import logger
 from livekit.agents import Agent, RunContext, function_tool, JobContext
 
-from gocare.state import ConversationContext, SessionState
-from gocare.agents.main_agent import MainAgent
+from app.state import ConversationContext, SessionState
+from app.agents.main_agent import MainAgent
 
 USER_ID_REGEX = re.compile(r"^u\d{3}$")
 OTP_REGEX = re.compile(r"^\d{4}$")

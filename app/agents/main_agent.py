@@ -12,8 +12,8 @@ from livekit.agents import (
     JobContext,
 )
 
-from gocare.state import SessionState
-from gocare.agents.helpline_agent import HelplineAgent
+from app.state import SessionState
+from app.agents.helpline_agent import HelplineAgent
 
 MAIN_INSTRUCTIONS = (
     "You're a helpful bank representative assisting customers with their account information.\n\n"

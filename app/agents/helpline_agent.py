@@ -3,7 +3,7 @@ from __future__ import annotations
 from loguru import logger
 from livekit.agents import Agent, RunContext, function_tool, JobContext
 
-from gocare.state import SessionState
+from app.state import SessionState
 
 HELPLINE_INSTRUCTIONS = (
     "You're a human customer support specialist at the bank.\n\n"
@@ -87,7 +87,7 @@ class HelplineAgent(Agent):
     async def end_session(self, context: RunContext) -> tuple[Agent, str]:
         """End the customer session"""
         logger.info("DEBUG - end_session() called")
-        from gocare.agents.multi_agent import MultiAgent
+        from app.agents.multi_agent import MultiAgent
 
         try:
             # Reset userdata properly

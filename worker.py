@@ -18,8 +18,8 @@ from livekit.agents import mcp  # import as mcp for clarity
 from livekit.plugins import deepgram, openai, silero, noise_cancellation
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
-from gocare.state import ConversationContext
-from gocare.agents import MultiAgent
+from app.state import ConversationContext
+from app.agents import MultiAgent
 
 
 load_dotenv()

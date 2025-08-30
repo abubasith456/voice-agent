@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any
 from livekit.agents import Agent
 
-from gocare.state import ConversationContext, SessionState
-from gocare.security import (
+from app.state import ConversationContext, SessionState
+from app.security import (
     contains_sensitive_request,
     refusal_message,
     log_sensitive_attempt,

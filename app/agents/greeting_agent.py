@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from livekit.agents import Agent
 
-from gocare.state import ConversationContext, SessionState
+from app.state import ConversationContext, SessionState
 
 BASE_GREETING_INSTRUCTIONS = (
     "You are a post-auth assistant. The user has been verified. "
